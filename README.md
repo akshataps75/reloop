@@ -1,4 +1,4 @@
-**1. Data layer first**
+- [x] **1. Data layer first**
 Turn `lib/types.ts` into your Postgres schema — it's basically already an ER diagram in disguise: `users`, `listings` (with `cluster` enum, `document_type`, `document_url`), `listings_interests`, `chat_threads`/`messages`, `meetups`. Add PostGIS: a `geography(Point)` column on `listings` (and `users` for their base location) plus a GIST index, so your "search radius" filter becomes a `ST_DWithin` query instead of app-side math.
 
 **2. Auth**
