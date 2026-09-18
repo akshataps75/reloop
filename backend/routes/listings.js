@@ -89,6 +89,43 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// GET /api/listings/:id/interested — seller-only. Buyers who expressed interest,
+// each with a get-or-create thread id so the seller can message them right away.
+router.get('/:id/interested', requireAuth, async (req, res) => {
+  try {
+    const listingResult = await pool.query('SELECT seller_id FROM listings WHERE id = $1', [req.params.id]);
+    if (listingResult.rows.length === 0) return res.status(404).json({ error: 'Listing not found' });
+    if (listingResult.rows[0].seller_id !== req.userId) {
+      return res.status(403).json({ error: 'Only the seller can view interested buyers' });
+    }
+
+    const buyers = await pool.query(
+      `SELECT li.buyer_id, li.interested_on, u.name, u.initials
+       FROM listing_interests li
+       JOIN users u ON u.id = li.buyer_id
+       WHERE li.listing_id = $1
+       ORDER BY li.interested_on DESC`,
+      [req.params.id]
+    );
+
+    const withThreads = await Promise.all(buyers.rows.map(async (b) => {
+      const threadResult = await pool.query(
+        `INSERT INTO chat_threads (listing_id, seller_id, buyer_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (listing_id, buyer_id) DO UPDATE SET listing_id = EXCLUDED.listing_id
+         RETURNING id`,
+        [req.params.id, req.userId, b.buyer_id]
+      );
+      return { ...b, thread_id: threadResult.rows[0].id };
+    }));
+
+    res.json(withThreads);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Something went wrong fetching interested buyers' });
+  }
+});
+
 // POST /api/listings — gated: must be authed AND verified.
 router.post('/', requireAuth, requireVerified, async (req, res) => {
   const { title, category, price, description, condition, image, documentType, documentUrl, lat, lng } = req.body;

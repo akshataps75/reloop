@@ -2,9 +2,23 @@
 
 import { useState } from 'react'
 import { Check, Loader2, ShieldCheck, X } from 'lucide-react'
+import { startVerification, completeVerification } from '../../lib/api'
 
 export function DigiLockerGate({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [stage, setStage] = useState<'intro' | 'loading' | 'success'>('intro')
+  const [stage, setStage] = useState<'intro' | 'loading' | 'success' | 'error'>('intro')
+  const [error, setError] = useState('')
+
+  const runVerification = async () => {
+    setStage('loading')
+    try {
+      await startVerification()
+      await completeVerification()
+      setStage('success')
+    } catch (err: any) {
+      setError(err.message)
+      setStage('error')
+    }
+  }
 
   return (
     <div className="modal-overlay">
@@ -23,13 +37,7 @@ export function DigiLockerGate({ onClose, onDone }: { onClose: () => void; onDon
               <div><Check size={14} /> Confirm the details we pull are yours</div>
               <div><Check size={14} /> Come back here — no extra steps</div>
             </div>
-            <button
-              className="primary-action full"
-              onClick={() => {
-                setStage('loading')
-                setTimeout(() => setStage('success'), 1500)
-              }}
-            >
+            <button className="primary-action full" onClick={runVerification}>
               Continue with DigiLocker
             </button>
           </>
@@ -43,6 +51,15 @@ export function DigiLockerGate({ onClose, onDone }: { onClose: () => void; onDon
             <button className="primary-action full disabled" disabled>
               <Loader2 size={16} className="spinner" /> Verifying
             </button>
+          </>
+        )}
+
+        {stage === 'error' && (
+          <>
+            <div className="dg-icon"><X size={28} /></div>
+            <h3>Verification failed</h3>
+            <p className="threshold-note">{error}</p>
+            <button className="primary-action full" onClick={runVerification}>Try again</button>
           </>
         )}
 

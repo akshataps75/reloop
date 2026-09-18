@@ -3,15 +3,12 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Send, Check, CheckCheck, CalendarClock } from 'lucide-react'
 import type { ChatMessage, ChatThread, Meetup } from '../../lib/types'
-import { getChatMessages, getChatThreads, sendMessage } from '../../lib/api'
-import { CHAT_MESSAGES, MEETUPS } from '../../lib/mock-data'
+import {
+  getChatMessages, getChatThreads, sendMessage,
+  getMeetup, proposeMeetup, acceptMeetup, declineMeetup, confirmMeetupDone,
+} from '../../lib/api'
 import { MeetupScheduler } from './MeetupScheduler'
 import { MeetupCard } from './MeetupCard'
-
-function lastMessage(threadId: string): ChatMessage | undefined {
-  const msgs = CHAT_MESSAGES[threadId]
-  return msgs && msgs.length ? msgs[msgs.length - 1] : undefined
-}
 
 function relLabel(t: ChatThread) {
   return t.role === 'selling' ? `Interested in ${t.listingTitle}` : `Selling ${t.listingTitle}`
@@ -31,13 +28,14 @@ export function Messaging({ onBack, initialThreadId }: { onBack: () => void; ini
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [schedulerOpen, setSchedulerOpen] = useState(false)
-  const [meetups, setMeetups] = useState<Record<string, Meetup>>(MEETUPS)
+  const [activeMeetup, setActiveMeetup] = useState<Meetup>({ status: 'none' })
 
   useEffect(() => {
     getChatThreads().then(data => {
       setThreads(data)
       const first = initialThreadId ?? data.find(t => t.role === 'selling')?.id ?? data[0]?.id ?? null
       setActiveId(first)
+      if (first) setTab(data.find(t => t.id === first)?.role ?? 'selling')
       setLoading(false)
     })
   }, [])
@@ -45,6 +43,7 @@ export function Messaging({ onBack, initialThreadId }: { onBack: () => void; ini
   useEffect(() => {
     if (!activeId) return
     getChatMessages(activeId).then(setMessages)
+    getMeetup(activeId).then(setActiveMeetup)
   }, [activeId])
 
   const switchTab = (next: 'selling' | 'buying') => {
@@ -71,41 +70,27 @@ export function Messaging({ onBack, initialThreadId }: { onBack: () => void; ini
     setDraft('')
   }
 
-  const updateMeetup = (id: string, patch: Partial<Meetup>) => {
-    setMeetups(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))
-  }
-
-  // dateIso is what will go to the API once this screen is wired to the real
-  // backend (POST /threads/:id/meetup expects a DATE-typed value); dateLabel
-  // is the human-readable string ("Sat, 20 Sep") used for local display until then.
-  const handleSendRequest = (dateIso: string, dateLabel: string, time: string, place: string) => {
+  const handleSendRequest = async (dateIso: string, _dateLabel: string, time: string, place: string) => {
     if (!activeId) return
-    updateMeetup(activeId, { status: 'pending', date: dateLabel, time, place, requestedBy: 'me', doneByMe: false, doneByThem: false })
+    const meetup = await proposeMeetup(activeId, dateIso, time, place)
+    setActiveMeetup(meetup)
   }
 
-  const activeMeetup = activeId ? meetups[activeId] ?? { status: 'none' as const } : { status: 'none' as const }
-
-  const renderThreadRow = (t: ChatThread) => {
-    const last = lastMessage(t.id)
-    return (
-      <div
-        key={t.id}
-        className={`thread ${t.id === activeId ? 'active' : ''}`}
-        onClick={() => setActiveId(t.id)}
-        style={{ cursor: 'pointer' }}
-      >
-        <span className={`profile-avatar ${t.warm ? 'warm' : ''}`}>{t.initials}</span>
-        <div>
-          <strong>{t.name}</strong>
-          <p>
-            {last?.from === 'me' && <Ticks status={last.status} />}
-            {t.role === 'buying' ? `${relLabel(t)} · ${last?.text ?? t.preview}` : (last?.text ?? t.preview)}
-          </p>
-        </div>
-        <small>{last?.time ?? t.time}</small>
+  const renderThreadRow = (t: ChatThread) => (
+    <div
+      key={t.id}
+      className={`thread ${t.id === activeId ? 'active' : ''}`}
+      onClick={() => setActiveId(t.id)}
+      style={{ cursor: 'pointer' }}
+    >
+      <span className={`profile-avatar ${t.warm ? 'warm' : ''}`}>{t.initials}</span>
+      <div>
+        <strong>{t.name}</strong>
+        <p>{t.role === 'buying' ? `${relLabel(t)} · ${t.preview}` : t.preview}</p>
       </div>
-    )
-  }
+      <small>{t.time}</small>
+    </div>
+  )
 
   return (
     <div className="page messages">
@@ -154,10 +139,9 @@ export function Messaging({ onBack, initialThreadId }: { onBack: () => void; ini
                     meetup={activeMeetup}
                     otherInitials={active.initials}
                     otherName={active.name}
-                    onAccept={() => updateMeetup(active.id, { status: 'confirmed', code: String(Math.floor(1000 + Math.random() * 9000)), doneByMe: false, doneByThem: false })}
-                    onDecline={() => updateMeetup(active.id, { status: 'declined' })}
-                    onConfirmDone={() => updateMeetup(active.id, { doneByMe: true })}
-                    onSimulateThem={() => updateMeetup(active.id, { doneByThem: true })}
+                    onAccept={async () => setActiveMeetup(await acceptMeetup(active.id))}
+                    onDecline={async () => setActiveMeetup(await declineMeetup(active.id))}
+                    onConfirmDone={async () => setActiveMeetup(await confirmMeetupDone(active.id))}
                   />
                 </div>
                 <div className="composer">

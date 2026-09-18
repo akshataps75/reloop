@@ -1,12 +1,14 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Check, Home, MessageCircle, Plus, Search, UserRound } from 'lucide-react'
-import type { Listing, Screen, SellerProfile as SellerProfileType, SellingListingItem } from '../lib/types'
-import { LISTINGS, SELLERS } from '../lib/mock-data'
+import type { Listing, Screen, SellerProfile as SellerProfileType } from '../lib/types'
+import { getStoredUser, type AuthUser } from '../lib/auth'
+import { expressInterest, createThread, getListingById, getSellerProfile } from '../lib/api'
 
 import { Header } from '../components/reloop/Header'
 import { NavItem } from '../components/reloop/NavItem'
+import { Auth } from '../components/reloop/Auth'
 import { Home as HomeScreen } from '../components/reloop/Home'
 import { Browse } from '../components/reloop/Browse'
 import { ListingDetail } from '../components/reloop/ListingDetail'
@@ -20,13 +22,16 @@ import { SellerProfile as SellerProfileScreen } from '../components/reloop/Selle
 import { SellingListingDetail } from '../components/reloop/SellingListingDetail'
 
 export default function ReLoop() {
-  const [screen, setScreen] = useState<Screen>('home')
-  const [selected, setSelected] = useState<Listing>(LISTINGS[0])
+  const [screen, setScreen] = useState<Screen>('auth')
+  const [checkedAuth, setCheckedAuth] = useState(false)
+  const [user, setUser] = useState<AuthUser | null>(null)
+
+  const [selected, setSelected] = useState<Listing | null>(null)
   const [search, setSearch] = useState('')
   const [interested, setInterested] = useState(false)
   const [toast, setToast] = useState('')
   const [viewingSeller, setViewingSeller] = useState<SellerProfileType | null>(null)
-  const [sellingItem, setSellingItem] = useState<SellingListingItem | null>(null)
+  const [sellingListingId, setSellingListingId] = useState<number | null>(null)
   const [pendingThreadId, setPendingThreadId] = useState<string | null>(null)
 
   const [locationOpen, setLocationOpen] = useState(false)
@@ -42,10 +47,19 @@ export default function ReLoop() {
 
   const [everVerified, setEverVerified] = useState(false)
 
-  const filtered = useMemo(
-    () => LISTINGS.filter(l => `${l.title} ${l.category}`.toLowerCase().includes(search.toLowerCase())),
-    [search],
-  )
+  // On mount, check localStorage for an existing session
+  useEffect(() => {
+    const stored = getStoredUser()
+    if (stored) {
+      setUser(stored)
+      setProfile(p => ({ ...p, name: stored.name, initials: stored.initials }))
+      setEverVerified(stored.verified)
+      setScreen('home')
+    } else {
+      setScreen('auth')
+    }
+    setCheckedAuth(true)
+  }, [])
 
   const notify = (m: string) => {
     setToast(m)
@@ -56,6 +70,29 @@ export default function ReLoop() {
     setSelected(l)
     setInterested(false)
     setScreen('detail')
+  }
+
+  const openDetailById = async (listingId: number) => {
+    const l = await getListingById(listingId)
+    if (l) openDetail(l)
+  }
+
+  // Avoid a flash of the auth screen while we check localStorage
+  if (!checkedAuth) return null
+
+  if (screen === 'auth') {
+    return (
+      <div className="app-shell">
+        <Auth
+          onAuthed={u => {
+            setUser(u)
+            setProfile(p => ({ ...p, name: u.name, initials: u.initials }))
+            setEverVerified(u.verified)
+            setScreen('home')
+          }}
+        />
+      </div>
+    )
   }
 
   return (
@@ -83,16 +120,26 @@ export default function ReLoop() {
           <Browse initialSearch={search} onSelectListing={openDetail} onBack={() => setScreen('home')} />
         )}
 
-        {screen === 'detail' && (
+        {screen === 'detail' && selected && (
           <ListingDetail
             listing={selected}
             interested={interested}
-            onInterested={() => { setInterested(true); notify('Interest sent to seller') }}
+            onInterested={async () => {
+              await expressInterest(selected.id)
+              setInterested(true)
+              notify('Interest sent to seller')
+            }}
             onBack={() => setScreen('browse')}
-            onMessage={() => { setScreen('messages'); notify('Conversation started') }}
-            onSellerProfile={() => {
-              const seller = SELLERS[selected.seller]
-              if (seller) { setViewingSeller(seller); setScreen('sellerProfile') }
+            onMessage={async () => {
+              const thread = await createThread(selected.id)
+              setPendingThreadId(thread.id)
+              setScreen('messages')
+              notify('Conversation started')
+            }}
+            onSellerProfile={async () => {
+              const seller = await getSellerProfile(selected.sellerId)
+              setViewingSeller(seller)
+              setScreen('sellerProfile')
             }}
           />
         )}
@@ -101,27 +148,21 @@ export default function ReLoop() {
           <SellerProfileScreen
             seller={viewingSeller}
             onBack={() => setScreen('detail')}
-            onSelectListing={(id) => {
-              const listing = LISTINGS.find(l => l.id === id)
-              if (listing) openDetail(listing)
-            }}
+            onSelectListing={id => openDetailById(id)}
           />
         )}
 
         {screen === 'activity' && (
           <MyActivity
             onBack={() => setScreen('home')}
-            onSelectSellingItem={item => { setSellingItem(item); setScreen('sellingDetail') }}
-            onSelectBuyingListing={listingId => {
-              const listing = LISTINGS.find(l => l.id === listingId)
-              if (listing) openDetail(listing)
-            }}
+            onSelectSellingItem={id => { setSellingListingId(id); setScreen('sellingDetail') }}
+            onSelectBuyingListing={listingId => openDetailById(listingId)}
           />
         )}
 
-        {screen === 'sellingDetail' && sellingItem && (
+        {screen === 'sellingDetail' && sellingListingId !== null && (
           <SellingListingDetail
-            item={sellingItem}
+            listingId={sellingListingId}
             onBack={() => setScreen('activity')}
             onMessageBuyer={threadId => {
               setPendingThreadId(threadId)
@@ -146,6 +187,10 @@ export default function ReLoop() {
             onBack={() => setScreen('home')}
             onActivity={() => setScreen('activity')}
             onEdit={() => setEditProfileOpen(true)}
+            onLogout={() => {
+              setUser(null)
+              setScreen('auth')
+            }}
           />
         )}
       </main>

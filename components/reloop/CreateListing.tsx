@@ -29,20 +29,21 @@ export function CreateListing({
   const isClusterB = Boolean(category) && Number(price || 0) >= threshold
 
   const publish = async () => {
-    setSubmitting(true)
+  setSubmitting(true)
+  try {
     await createListing({
       title: title || 'Untitled listing',
       category: category || 'Other',
       price: Number(price || 0),
-      distance: '0.5 km away',
-      image: '',
-      seller: 'You',
-      initials: 'YOU',
       description,
     })
-    setSubmitting(false)
     onCreated()
+  } catch (err: any) {
+    alert(err.message) // simple for now — can swap for inline error state if you want
+  } finally {
+    setSubmitting(false)
   }
+}
 
   const attemptPublish = () => {
     if (!everVerified) {

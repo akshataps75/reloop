@@ -1,4 +1,4 @@
-export type Screen = 'home' | 'browse' | 'detail' | 'activity' | 'messages' | 'create' | 'profile' | 'sellerProfile' | 'sellingDetail'
+export type Screen = 'auth' | 'home' | 'browse' | 'detail' | 'activity' | 'messages' | 'create' | 'profile' | 'sellerProfile' | 'sellingDetail'
 
 export type MeetupStatus = 'none' | 'pending' | 'confirmed' | 'declined'
 
@@ -15,6 +15,7 @@ export type Meetup = {
 
 export type Listing = {
   id: number
+  sellerId: number
   title: string
   category: string
   price: number
@@ -26,6 +27,8 @@ export type Listing = {
   description?: string
   clusterB?: boolean
   documentUrl?: string
+  status?: 'active' | 'sold'
+  soldOn?: string
 }
 
 export type ChatThread = {

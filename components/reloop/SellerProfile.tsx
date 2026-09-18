@@ -30,7 +30,6 @@ export function SellerProfile({
       <div className="profile-stats">
         <div><strong>{seller.stats.listings}</strong><span>Listings</span></div>
         <div><strong>{seller.stats.exchanges}</strong><span>Successful exchanges</span></div>
-        <div><strong>{seller.stats.rating}</strong><span>Community rating</span></div>
       </div>
 
       <div className="section">

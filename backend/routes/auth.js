@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
+const requireAuth = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -64,6 +65,24 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Something went wrong during login' });
+  }
+});
+
+router.patch('/me', requireAuth, async (req, res) => {
+  const { phone, address } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE users 
+       SET phone_number = COALESCE($1, phone_number), 
+           address = COALESCE($2, address) 
+       WHERE id = $3 
+       RETURNING id, name, email, initials, verified, phone_number, address`,
+      [phone || null, address || null, req.userId]
+    );
+    res.json({ user: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Something went wrong updating your profile' });
   }
 });
 

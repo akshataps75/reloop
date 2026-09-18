@@ -1,16 +1,19 @@
 'use client'
 
-import { ArrowLeft, ChevronRight, Clock3, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Clock3, LogOut, ShieldCheck } from 'lucide-react'
 import { CURRENT_USER } from '../../lib/mock-data'
+import { clearAuth } from '../../lib/auth'
 
 export function Profile({
   onBack,
   onActivity,
   onEdit,
+  onLogout,
 }: {
   onBack: () => void
   onActivity: () => void
   onEdit: () => void
+  onLogout: () => void
 }) {
   return (
     <div className="page profile-page">
@@ -36,6 +39,16 @@ export function Profile({
         <button onClick={onActivity}>
           <Clock3 />
           <span><strong>My activity</strong><small>Your selling and buying, in one place</small></span>
+          <ChevronRight />
+        </button>
+        <button
+          onClick={() => {
+            clearAuth()
+            onLogout()
+          }}
+        >
+          <LogOut />
+          <span><strong>Log out</strong><small>Sign out of your ReLoop account</small></span>
           <ChevronRight />
         </button>
       </div>
