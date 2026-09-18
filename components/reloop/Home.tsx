@@ -31,7 +31,7 @@ export function Home({
           </div>
           <div className="quick-links">
             <span>Popular:</span>
-            {['Textbooks', 'Electronics', 'Cycles'].map(x => (
+            {['Books & Stationery', 'Electronics & Gadgets', 'Vehicles'].map(x => (
               <button key={x} onClick={() => onCategory(x)}>{x}</button>
             ))}
           </div>

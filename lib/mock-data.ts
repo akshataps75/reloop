@@ -11,32 +11,40 @@ export const CURRENT_USER = {
 }
 
 export const CATEGORIES: [string, string, string][] = [
-  ['Textbooks', '📚', '82 listings'],
-  ['Electronics', '⌨', '64 listings'],
-  ['Furniture', '⌂', '41 listings'],
-  ['Cycles', '♢', '28 listings'],
-  ['Sports', '◌', '19 listings'],
-  ['More', '•••', 'Explore all'],
+  ['Books & Stationery', '📚', '0 listings'],
+  ['Mobile & Accessories', '📱', '0 listings'],
+  ['Electronics & Gadgets', '⌨', '0 listings'],
+  ['Furniture & Home', '⌂', '0 listings'],
+  ['Vehicles', '🚲', '0 listings'],
+  ['Fashion & Accessories', '👕', '0 listings'],
+  ['Sports & Fitness', '◌', '0 listings'],
+  ['Appliances', '🔌', '0 listings'],
+  ['Musical Instruments', '🎸', '0 listings'],
+  ['Other', '•••', 'Explore all'],
 ]
 
 export const LISTINGS: Listing[] = [
-  { id: 1, title: 'Engineering Mechanics', category: 'Textbooks', price: 350, distance: '0.8 km away', image: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=800&q=80', seller: 'Aarav M.', initials: 'AM', time: '2 hours ago' },
-  { id: 2, title: 'Mechanical Keyboard', category: 'Electronics', price: 2200, distance: '1.2 km away', image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&q=80', seller: 'Ishita R.', initials: 'IR', time: '5 hours ago' , clusterB: true, documentUrl: '/mock-documents/warranty-card.pdf' },
-  { id: 3, title: 'Study Table', category: 'Furniture', price: 1800, distance: '2.4 km away', image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=800&q=80', seller: 'Kabir S.', initials: 'KS', time: 'Yesterday' },
-  { id: 4, title: 'Firefox Road Bike', category: 'Cycles', price: 8500, distance: '3.1 km away', image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=800&q=80', seller: 'Naina P.', initials: 'NP', time: 'Yesterday' },
-  { id: 5, title: 'Calculus — Thomas', category: 'Textbooks', price: 280, distance: '1.8 km away', image: 'https://images.unsplash.com/photo-1526243741027-444d633d7365?w=800&q=80', seller: 'Rohan K.', initials: 'RK', time: '2 days ago' },
-  { id: 6, title: 'Ikea Floor Lamp', category: 'Furniture', price: 900, distance: '2.0 km away', image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=800&q=80', seller: 'Meera J.', initials: 'MJ', time: '2 days ago' },
+  { id: 1, title: 'Engineering Mechanics', category: 'Books & Stationery', price: 350, distance: '0.8 km away', image: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=800&q=80', seller: 'Aarav M.', initials: 'AM', time: '2 hours ago' },
+  { id: 2, title: 'Mechanical Keyboard', category: 'Electronics & Gadgets', price: 2200, distance: '1.2 km away', image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&q=80', seller: 'Ishita R.', initials: 'IR', time: '5 hours ago' , clusterB: true, documentUrl: '/mock-documents/warranty-card.pdf' },
+  { id: 3, title: 'Study Table', category: 'Furniture & Home', price: 1800, distance: '2.4 km away', image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=800&q=80', seller: 'Kabir S.', initials: 'KS', time: 'Yesterday' },
+  { id: 4, title: 'Firefox Road Bike', category: 'Vehicles', price: 8500, distance: '3.1 km away', image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=800&q=80', seller: 'Naina P.', initials: 'NP', time: 'Yesterday' },
+  { id: 5, title: 'Calculus — Thomas', category: 'Books & Stationery', price: 280, distance: '1.8 km away', image: 'https://images.unsplash.com/photo-1526243741027-444d633d7365?w=800&q=80', seller: 'Rohan K.', initials: 'RK', time: '2 days ago' },
+  { id: 6, title: 'Ikea Floor Lamp', category: 'Furniture & Home', price: 900, distance: '2.0 km away', image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=800&q=80', seller: 'Meera J.', initials: 'MJ', time: '2 days ago' },
 ]
 
 export const categories = CATEGORIES
 export const listings = LISTINGS
 
 export const THRESHOLDS: Record<string, number> = {
-  Textbooks: 2000,
-  Electronics: 8000,
-  Furniture: 5000,
-  Cycles: 6000,
-  Sports: 4000,
+  'Books & Stationery': 1500,
+  'Mobile & Accessories': 10000,
+  'Electronics & Gadgets': 8000,
+  'Furniture & Home': 5000,
+  'Vehicles': 6000,
+  'Fashion & Accessories': 2500,
+  'Sports & Fitness': 4000,
+  Appliances: 6000,
+  'Musical Instruments': 5000,
 }
 
 export const LOCATION_RESULTS = [
@@ -94,7 +102,7 @@ export const SELLING = {
   active: [
     {
       id: 1, title: 'Mechanical Keyboard', price: 2200, sub: '2 interested buyers',
-      image: LISTINGS[1].image, category: 'Electronics', condition: 'Gently used',
+      image: LISTINGS[1].image, category: 'Electronics & Gadgets', condition: 'Gently used',
       description: 'Gently used and well cared for. Happy to share more photos or answer any questions. Open to a quick meetup nearby.',
       status: 'active' as const,
       interestedBuyers: [
@@ -104,7 +112,7 @@ export const SELLING = {
     },
     {
       id: 2, title: 'Ikea Floor Lamp', price: 900, sub: 'No interest yet',
-      image: LISTINGS[5].image, category: 'Furniture', condition: 'Like new',
+      image: LISTINGS[5].image, category: 'Furniture & Home', condition: 'Like new',
       description: 'Compact floor lamp, works perfectly, selling as I am shifting.',
       status: 'active' as const,
       interestedBuyers: [],
@@ -113,7 +121,7 @@ export const SELLING = {
   sold: [
     {
       id: 3, title: 'Engineering Mechanics', price: 350, sub: 'Sold on 5 August 2026',
-      image: LISTINGS[0].image, category: 'Textbooks', condition: 'Used, all pages intact',
+      image: LISTINGS[0].image, category: 'Books & Stationery', condition: 'Used, all pages intact',
       description: 'Engineering Mechanics textbook, second-hand, no markings.',
       status: 'sold' as const,
       interestedBuyers: [],

@@ -4,6 +4,7 @@ const cors = require('cors');
 const pool = require('./db');
 const authRoutes = require('./routes/auth');
 const verificationRoutes = require('./routes/verification');
+const listingsRoutes = require('./routes/listings');
 
 const app = express();
 app.use(cors());
@@ -21,6 +22,9 @@ app.get('/api/health', async (req, res) => {
     res.status(500).json({ status: 'error', message: err.message });
   }
 });
+
+app.use('/api/listings', listingsRoutes);
+app.use('/api', listingsRoutes); // handles /api/users/:id and /api/me/activity, defined in the same router
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
