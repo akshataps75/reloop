@@ -1,7 +1,7 @@
 - [x] **1. Data layer first**
 Turn `lib/types.ts` into your Postgres schema — it's basically already an ER diagram in disguise: `users`, `listings` (with `cluster` enum, `document_type`, `document_url`), `listings_interests`, `chat_threads`/`messages`, `meetups`. Add PostGIS: a `geography(Point)` column on `listings` (and `users` for their base location) plus a GIST index, so your "search radius" filter becomes a `ST_DWithin` query instead of app-side math.
 
-**2. Auth**
+- [x] **2. Auth**
 JWT issued at signup/login as you'd decided — straightforward Express middleware. Keep the mock DigiLocker gate as a separate flag on the user (`verified: boolean`) that gets flipped by a mock OAuth callback route, not baked into the JWT itself.
 
 **3. API surface, roughly matching your screens**

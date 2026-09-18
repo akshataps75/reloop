@@ -2,10 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
+const authRoutes = require('./routes/auth');
+const verificationRoutes = require('./routes/verification');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use('/api/auth', authRoutes);
+app.use('/api/verification', verificationRoutes);
 
 // Quick sanity check route — confirms server + DB both work
 app.get('/api/health', async (req, res) => {
