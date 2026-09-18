@@ -1,20 +1,57 @@
-- [x] **1. Data layer first**
-Turn `lib/types.ts` into your Postgres schema — it's basically already an ER diagram in disguise: `users`, `listings` (with `cluster` enum, `document_type`, `document_url`), `listings_interests`, `chat_threads`/`messages`, `meetups`. Add PostGIS: a `geography(Point)` column on `listings` (and `users` for their base location) plus a GIST index, so your "search radius" filter becomes a `ST_DWithin` query instead of app-side math.
+## Status
 
-- [x] **2. Auth**
-JWT issued at signup/login as you'd decided — straightforward Express middleware. Keep the mock DigiLocker gate as a separate flag on the user (`verified: boolean`) that gets flipped by a mock OAuth callback route, not baked into the JWT itself.
+Backend is fully built and tested against Supabase: auth, mock DigiLocker verification gate,
+listings CRUD + PostGIS radius search + cluster A/B auto-assignment, interest tracking,
+chat threads/messages, meetup propose/accept/decline/confirm-done (auto-marks listing sold
+when both sides confirm). All migrations (001–003) applied.
 
-**3. API surface, roughly matching your screens**
-- `POST /auth/signup`, `/auth/login`
-- `GET /listings?lat&lng&radius&search` — the PostGIS query
-- `POST /listings` (gated: checks `verified`, auto-assigns cluster from price/category thresholds server-side)
-- `GET /listings/:id`, `GET /users/:id` (seller profile — active + sold, respecting the "sold items greyed out but visible" rule)
-- `POST /listings/:id/interest`, `GET /me/activity` (selling/buying, ongoing/completed)
-- `GET/POST /threads`, `/threads/:id/messages` — gate thread creation behind an existing interest record
-- `POST /meetups`, `/meetups/:id/accept` → generates the confirmation code
+Frontend UI is fully built but still runs entirely on `lib/mock-data.ts` — `lib/api.ts`'s
+functions don't call the Express API yet. That's the main remaining work.
 
-**4. Swap the frontend over incrementally**
-`lib/api.ts` already exists as a thin layer (Messaging uses it) — extend that pattern everywhere: replace direct `mock-data.ts` imports in each component with calls through `lib/api.ts`, screen by screen, so the UI never has to change, only its data source. Keep `mock-data.ts` around as fallback/seed data for your dev DB.
+## Known backend gaps to close first
 
-**5. Order of attack**
-Auth → listings CRUD + PostGIS search → interest/messaging → meetup/confirmation code. Leave payment-hold/escrow out per your scoped-down plan.
+- [ ] `routes/meetups.js` returns raw `requested_by_user_id` — translate to `requestedBy: 'me'|'them'`
+      per-viewer (same pattern `routes/threads.js` already uses for `role`/`name`), since
+      `MeetupCard.tsx` expects the `'me'|'them'` shape directly.
+- [ ] No image upload/storage — listings only accept an `image` URL string. Needs a plan
+      (Supabase Storage bucket is the obvious fit given the rest of the stack) before the
+      Create Listing screen can attach real photos.
+
+## Remaining steps, in order
+
+- [ ] **1. Seed script**
+Write `backend/seed.js` (or `migrations/004_seed.sql`) that inserts a handful of real users +
+listings into Supabase, sourced from `lib/mock-data.ts`'s `LISTINGS`/`SELLING`/`SELLERS` arrays.
+Needed before any frontend wiring is testable against real data.
+
+- [ ] **2. Auth wiring**
+Locate/build the login + signup screens (not yet reviewed). Wire them to
+`POST /api/auth/signup` / `/login`, store the returned JWT (localStorage is fine for now),
+and attach `Authorization: Bearer <token>` to every authed call `lib/api.ts` makes from here on.
+
+- [ ] **3. Swap `lib/api.ts` over, function by function**
+Keep the existing function signatures so components don't need to change — only the
+implementation, mock arrays → real `fetch` calls:
+  - `getListings` → `GET /api/listings?lat&lng&radius&search&category`
+  - `getListingById` → `GET /api/listings/:id`
+  - `createListing` → `POST /api/listings`
+  - `getChatThreads` → `GET /api/threads`
+  - `getChatMessages` → `GET /api/threads/:id/messages`
+  - `sendMessage` → `POST /api/threads/:id/messages`
+  - new: `expressInterest` → `POST /api/listings/:id/interest`
+  - new: `getSellerProfile` → `GET /api/users/:id`
+  - new: `getMyActivity` → `GET /api/me/activity`
+  - new: `getMeetup` / `proposeMeetup` / `acceptMeetup` / `declineMeetup` / `confirmMeetupDone`
+    → the five `GET/POST /api/threads/:id/meetup(...)` endpoints — `Messaging.tsx`'s handlers
+    currently only touch local state and need to call these instead.
+
+- [ ] **4. Pincode-based location**
+`LocationModal.tsx` currently uses a hardcoded `LOCATION_RESULTS` array (4 fixed Pune areas).
+Replace with real pincode entry + geocoding (India Post pincode API or similar) so `lat`/`lng`
+resolve dynamically instead of being pre-baked.
+
+- [ ] **5. Image upload**
+Once a storage approach is picked (see gap above), wire the Create Listing form to actually
+upload a file and pass the resulting URL to `createListing`.
+
+Leave payment-hold/escrow out, per the original scoped-down plan.

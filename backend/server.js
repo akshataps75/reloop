@@ -5,6 +5,8 @@ const pool = require('./db');
 const authRoutes = require('./routes/auth');
 const verificationRoutes = require('./routes/verification');
 const listingsRoutes = require('./routes/listings');
+const threadsRoutes = require('./routes/threads');
+const meetupsRoutes = require('./routes/meetups');
 
 const app = express();
 app.use(cors());
@@ -24,6 +26,8 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.use('/api/listings', listingsRoutes);
+app.use('/api/threads/:threadId/meetup', meetupsRoutes);
+app.use('/api/threads', threadsRoutes);
 app.use('/api', listingsRoutes); // handles /api/users/:id and /api/me/activity, defined in the same router
 
 const PORT = process.env.PORT || 4000;

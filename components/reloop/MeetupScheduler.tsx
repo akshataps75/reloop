@@ -4,7 +4,18 @@ import { useState } from 'react'
 import { X, MapPin } from 'lucide-react'
 import { LOCATION_RESULTS } from '../../lib/mock-data'
 
-const DATE_OPTIONS = ['Sat, 13 Sep', 'Sun, 14 Sep', 'Mon, 15 Sep', 'Tue, 16 Sep']
+function nextDays(count: number) {
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() + i + 1) // start from tomorrow
+    return {
+      label: d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' }), // "Sat, 20 Sep"
+      iso: d.toISOString().slice(0, 10), // "2026-09-20"
+    }
+  })
+}
+
+const DATE_OPTIONS = nextDays(4)
 const TIME_OPTIONS = ['9:00 AM', '10:00 AM', '11:00 AM', '2:00 PM', '4:00 PM', '6:00 PM']
 
 export function MeetupScheduler({
@@ -16,7 +27,7 @@ export function MeetupScheduler({
   listingTitle: string
   otherName: string
   onClose: () => void
-  onSend: (date: string, time: string, place: string) => void
+  onSend: (dateIso: string, dateLabel: string, time: string, place: string) => void
 }) {
   const [date, setDate] = useState(DATE_OPTIONS[0])
   const [time, setTime] = useState(TIME_OPTIONS[1])
@@ -34,8 +45,8 @@ export function MeetupScheduler({
         <div className="form-card" style={{ padding: 0, border: 0 }}>
           <label>
             Date
-            <select value={date} onChange={e => setDate(e.target.value)}>
-              {DATE_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+            <select value={date.iso} onChange={e => setDate(DATE_OPTIONS.find(d => d.iso === e.target.value)!)}>
+              {DATE_OPTIONS.map(d => <option key={d.iso} value={d.iso}>{d.label}</option>)}
             </select>
           </label>
           <label>
@@ -63,7 +74,7 @@ export function MeetupScheduler({
           </div>
           <button
             className="primary-action"
-            onClick={() => { onSend(date, time, `${spot.name}, ${spot.addr}`); onClose() }}
+            onClick={() => { onSend(date.iso, date.label, time, `${spot.name}, ${spot.addr}`); onClose() }}
           >
             <MapPin size={15} style={{ marginRight: 6, verticalAlign: '-2px' }} />
             Send request

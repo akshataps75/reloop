@@ -75,9 +75,12 @@ export function Messaging({ onBack, initialThreadId }: { onBack: () => void; ini
     setMeetups(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))
   }
 
-  const handleSendRequest = (date: string, time: string, place: string) => {
+  // dateIso is what will go to the API once this screen is wired to the real
+  // backend (POST /threads/:id/meetup expects a DATE-typed value); dateLabel
+  // is the human-readable string ("Sat, 20 Sep") used for local display until then.
+  const handleSendRequest = (dateIso: string, dateLabel: string, time: string, place: string) => {
     if (!activeId) return
-    updateMeetup(activeId, { status: 'pending', date, time, place, requestedBy: 'me', doneByMe: false, doneByThem: false })
+    updateMeetup(activeId, { status: 'pending', date: dateLabel, time, place, requestedBy: 'me', doneByMe: false, doneByThem: false })
   }
 
   const activeMeetup = activeId ? meetups[activeId] ?? { status: 'none' as const } : { status: 'none' as const }
