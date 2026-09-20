@@ -128,7 +128,7 @@ router.get('/:id/interested', requireAuth, async (req, res) => {
 
 // POST /api/listings — gated: must be authed AND verified.
 router.post('/', requireAuth, requireVerified, async (req, res) => {
-  const { title, category, price, description, condition, image, documentType, documentUrl, lat, lng } = req.body;
+  const { title, category, price, description, condition, image, images, documentType, documentUrl, lat, lng } = req.body;
 
   if (!title || !category || price === undefined) {
     return res.status(400).json({ error: 'title, category, and price are required' });
@@ -137,16 +137,18 @@ router.post('/', requireAuth, requireVerified, async (req, res) => {
   const cluster = assignCluster(category, price);
 
   try {
+    const imageList = Array.isArray(images) ? images : [];
+    const coverImage = image || imageList[0] || null;
     const result = await pool.query(
       `INSERT INTO listings
-         (seller_id, title, category, price, image, description, condition, cluster, document_type, document_url, location)
+         (seller_id, title, category, price, image, images, description, condition, cluster, document_type, document_url, location)
        VALUES
-         ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-          CASE WHEN $11::float8 IS NOT NULL AND $12::float8 IS NOT NULL
-               THEN ST_SetSRID(ST_MakePoint($11, $12), 4326)::geography
+         ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+          CASE WHEN $12::float8 IS NOT NULL AND $13::float8 IS NOT NULL
+               THEN ST_SetSRID(ST_MakePoint($12, $13), 4326)::geography
                ELSE NULL END)
        RETURNING *`,
-      [req.userId, title, category, price, image || null, description || null, condition || null,
+      [req.userId, title, category, price, coverImage, imageList, description || null, condition || null,
        cluster, documentType || null, documentUrl || null,
        lng !== undefined ? Number(lng) : null, lat !== undefined ? Number(lat) : null]
     );

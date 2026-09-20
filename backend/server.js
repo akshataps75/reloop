@@ -7,6 +7,8 @@ const verificationRoutes = require('./routes/verification');
 const listingsRoutes = require('./routes/listings');
 const threadsRoutes = require('./routes/threads');
 const meetupsRoutes = require('./routes/meetups');
+const uploadsRoutes = require('./routes/uploads');  
+const geocodeRoutes = require('./routes/geocode');
 
 const app = express();
 app.use(cors());
@@ -26,9 +28,11 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.use('/api/listings', listingsRoutes);
+app.use('/api/uploads', uploadsRoutes); 
 app.use('/api/threads/:threadId/meetup', meetupsRoutes);
 app.use('/api/threads', threadsRoutes);
 app.use('/api', listingsRoutes); // handles /api/users/:id and /api/me/activity, defined in the same router
+app.use('/api/geocode', geocodeRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

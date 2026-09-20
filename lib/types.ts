@@ -21,6 +21,7 @@ export type Listing = {
   price: number
   distance: string
   image: string
+  images?: string[]
   seller: string
   initials: string
   time: string

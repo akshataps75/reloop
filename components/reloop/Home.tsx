@@ -1,8 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { ChevronRight, Search, ShieldCheck, Sparkles } from 'lucide-react'
 import type { Listing } from '@/lib/types'
-import { CATEGORIES, LISTINGS } from '@/lib/mock-data'
+import { CATEGORIES } from '@/lib/mock-data'
+import { getListings } from '@/lib/api'
 import { ListingCard } from './ListingCard'
 
 export function Home({
@@ -18,6 +20,20 @@ export function Home({
   onDetail: (l: Listing) => void
   onCategory: (c: string) => void
 }) {
+
+  const [freshListings, setFreshListings] = useState<Listing[]>([])
+  const [loadingFresh, setLoadingFresh] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    getListings().then(data => {
+      if (!cancelled) {
+        setFreshListings(data.slice(0, 3))
+        setLoadingFresh(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [])
   return (
     <div className="page home-page">
       <section className="hero">
@@ -65,7 +81,13 @@ export function Home({
           <button className="text-link" onClick={onBrowse}>See all <ChevronRight size={15} /></button>
         </div>
         <div className="listing-grid">
-          {LISTINGS.slice(0, 3).map(l => <ListingCard listing={l} key={l.id} onClick={() => onDetail(l)} />)}
+          {loadingFresh ? (
+            <p className="eyebrow">Loading…</p>
+          ) : freshListings.length ? (
+            freshListings.map(l => <ListingCard listing={l} key={l.id} onClick={() => onDetail(l)} />)
+          ) : (
+            <p className="eyebrow">No listings yet — be the first to post one.</p>
+          )}
         </div>
       </section>
 

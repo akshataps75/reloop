@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ArrowLeft, Camera, ChevronRight, ShieldCheck } from 'lucide-react'
 import { THRESHOLDS, rupee } from '../../lib/mock-data'
-import { createListing } from '../../lib/api'
+import { createListing, uploadFiles } from '../../lib/api'
 import { DigiLockerGate } from './DigiLockerGate'
 
 export function CreateListing({
@@ -24,26 +24,68 @@ export function CreateListing({
   const [docType, setDocType] = useState('')
   const [gateOpen, setGateOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [photos, setPhotos] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [docFile, setDocFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    setPhotos(prev => [...prev, ...files])
+    setPhotoPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))])
+    e.target.value = '' // lets the same file be re-picked later if removed and re-added
+  }
+
+  const removePhoto = (index: number) => {
+    URL.revokeObjectURL(photoPreviews[index]) // free the preview memory
+    setPhotos(prev => prev.filter((_, i) => i !== index))
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleDocSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) setDocFile(file)
+  }
 
   const threshold = category ? THRESHOLDS[category] : Infinity
   const isClusterB = Boolean(category) && Number(price || 0) >= threshold
 
   const publish = async () => {
-  setSubmitting(true)
-  try {
-    await createListing({
-      title: title || 'Untitled listing',
-      category: category || 'Other',
-      price: Number(price || 0),
-      description,
-    })
-    onCreated()
-  } catch (err: any) {
-    alert(err.message) // simple for now — can swap for inline error state if you want
-  } finally {
-    setSubmitting(false)
+    setSubmitting(true)
+    try {
+      let imageUrls: string[] = []
+      if (photos.length > 0) {
+        setUploading(true)
+        imageUrls = await uploadFiles(photos)
+        setUploading(false)
+      }
+
+      let documentUrl: string | undefined
+      if (docFile) {
+        setUploading(true)
+        const [uploadedDocUrl] = await uploadFiles([docFile])
+        documentUrl = uploadedDocUrl
+        setUploading(false)
+      }
+
+      await createListing({
+        title: title || 'Untitled listing',
+        category: category || 'Other',
+        price: Number(price || 0),
+        description,
+        images: imageUrls,
+        documentType: docType || undefined,
+        documentUrl,
+      })
+      onCreated()
+    } catch (err: any) {
+      alert(err.message) // simple for now — can swap for inline error state if you want
+    } finally {
+      setSubmitting(false)
+      setUploading(false)
+    }
   }
-}
 
   const attemptPublish = () => {
     if (!everVerified) {
@@ -64,7 +106,33 @@ export function CreateListing({
           <Camera size={28} />
           <strong>Add photos</strong>
           <small>Clear photos help things find a new home</small>
-          <button type="button">Choose photos</button>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            id="photo-input"
+            style={{ display: 'none' }}
+            onChange={handlePhotoSelect}
+          />
+          <label htmlFor="photo-input" className="chip" style={{ cursor: 'pointer' }}>
+            Choose photos
+          </label>
+          {photoPreviews.length > 0 && (
+            <div className="chip-row" style={{ marginTop: 12 }}>
+              {photoPreviews.map((src, i) => (
+                <div key={src} style={{ position: 'relative' }}>
+                  <img src={src} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8 }} />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(i)}
+                    style={{ position: 'absolute', top: -6, right: -6, borderRadius: '50%', width: 20, height: 20, lineHeight: '20px', padding: 0 }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="form-card">
           <label>What are you listing?
@@ -90,7 +158,6 @@ export function CreateListing({
                 <span>This item's price crosses the verification threshold for {category} ({rupee(threshold)}+). A few extra details are needed before it goes live.</span>
               </div>
               <label>Condition notes<textarea placeholder="Describe scratches, functional issues, service history..." /></label>
-              <div className="upload-box small"><Camera size={22} /><strong>Functional-proof photo or video</strong></div>
               <label>Ownership document type
                 <div className="chip-row">
                   {['Warranty', 'Insurance', 'Receipt', 'Service record', 'Not applicable'].map(d => (
@@ -106,7 +173,20 @@ export function CreateListing({
                 </div>
               </label>
               {docType && docType !== 'Not applicable' && (
-                <div className="upload-box small"><Camera size={22} /><strong>Upload {docType.toLowerCase()}</strong></div>
+                <div className="upload-box small">
+                  <Camera size={22} />
+                  <strong>Upload {docType.toLowerCase()}</strong>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    id="doc-input"
+                    style={{ display: 'none' }}
+                    onChange={handleDocSelect}
+                  />
+                  <label htmlFor="doc-input" className="chip" style={{ cursor: 'pointer' }}>
+                    {docFile ? docFile.name : 'Choose file'}
+                  </label>
+                </div>
               )}
             </div>
           )}

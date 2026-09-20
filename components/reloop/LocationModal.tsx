@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MapPin, Search, X } from 'lucide-react'
-import { LOCATION_RESULTS } from '../../lib/mock-data'
+import { searchLocations } from '../../lib/api'
+
+type LocResult = { name: string; addr: string; lat: number; lng: number }
 
 export function LocationModal({
   isOpen,
@@ -14,18 +16,53 @@ export function LocationModal({
   onSelectLocation: (locName: string) => void
 }) {
   const [search, setSearch] = useState('')
-  const [selectedLoc, setSelectedLoc] = useState<(typeof LOCATION_RESULTS)[0] | null>(null)
+  const [results, setResults] = useState<LocResult[]>([])
+  const [searching, setSearching] = useState(false)
+  const [selectedLoc, setSelectedLoc] = useState<LocResult | null>(null)
+
+  useEffect(() => {
+    if (!search || search.trim().length < 3) {
+      setResults([])
+      return
+    }
+    let cancelled = false
+    setSearching(true)
+    const timeout = setTimeout(() => {
+      searchLocations(search).then(data => {
+        if (!cancelled) {
+          setResults(data)
+          setSearching(false)
+        }
+      }).catch(() => {
+        if (!cancelled) setSearching(false)
+      })
+    }, 500) // debounce — waits for a pause in typing before hitting the backend
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+    }
+  }, [search])
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setSelectedLoc({
+          name: 'Current location',
+          addr: `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`,
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        })
+      },
+      err => console.error('Geolocation failed:', err)
+    )
+  }
 
   if (!isOpen) return null
 
-  const filtered = LOCATION_RESULTS.filter(
-    loc =>
-      loc.name.toLowerCase().includes(search.toLowerCase()) ||
-      loc.addr.toLowerCase().includes(search.toLowerCase()),
-  )
-
   const handleConfirm = () => {
-    onSelectLocation(selectedLoc ? `${selectedLoc.name}, Pune` : 'Baner, Pune')
+    onSelectLocation(selectedLoc ? selectedLoc.name : 'your area')
     onClose()
   }
 
@@ -41,13 +78,17 @@ export function LocationModal({
               <Search size={16} />
               <input placeholder="Search area or society" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            {filtered.map(loc => (
-              <button key={loc.name} className="loc-result" onClick={() => setSelectedLoc(loc)}>
+            {searching && <p className="muted">Searching…</p>}
+            {!searching && search.trim().length >= 3 && results.length === 0 && (
+              <p className="muted">No matches found — try a nearby landmark or locality name.</p>
+            )}
+            {results.map(loc => (
+              <button key={`${loc.lat}-${loc.lng}`} className="loc-result" onClick={() => setSelectedLoc(loc)}>
                 <MapPin size={16} />
                 <span><strong>{loc.name}</strong><small>{loc.addr}</small></span>
               </button>
             ))}
-            <button className="use-current" onClick={() => setSelectedLoc(LOCATION_RESULTS[1])}>
+            <button className="use-current" onClick={useCurrentLocation}>
               <MapPin size={16} /> Use current location
             </button>
           </>

@@ -36,6 +36,7 @@ function adaptListing(row: any): Listing {
     price: Number(row.price),
     distance: '',
     image: row.image || '',
+    images: Array.isArray(row.images) && row.images.length > 0 ? row.images : undefined,
     seller: row.seller,
     initials: row.seller_initials,
     time: row.created_at ? timeAgo(row.created_at) : '',
@@ -97,6 +98,7 @@ export async function createListing(newListing: {
   description?: string
   condition?: string
   image?: string
+  images?: string[]
   documentType?: string
   documentUrl?: string
 }): Promise<Listing> {
@@ -107,6 +109,20 @@ export async function createListing(newListing: {
   })
   const row = await handle(res)
   return adaptListing(row)
+}
+
+export async function uploadFiles(files: File[]): Promise<string[]> {
+  const formData = new FormData()
+  files.forEach(file => formData.append('files', file))
+
+  const res = await fetch(`${API_BASE}/api/uploads`, {
+    method: 'POST',
+    headers: authHeaders(), // no Content-Type here — the browser sets the correct
+                             // multipart boundary automatically when body is FormData
+    body: formData,
+  })
+  const data = await handle(res)
+  return data.urls
 }
 
 // --- Verification (mock DigiLocker) ---
@@ -250,4 +266,9 @@ export async function getInterestedBuyers(listingId: number) {
     initials: r.initials,
     interestedOn: r.interested_on ? new Date(r.interested_on).toLocaleDateString() : '',
   }))
+}
+
+export async function searchLocations(query: string): Promise<{ name: string; addr: string; lat: number; lng: number }[]> {
+  const res = await fetch(`${API_BASE}/api/geocode/search?q=${encodeURIComponent(query)}`)
+  return handle(res)
 }

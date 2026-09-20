@@ -152,3 +152,4 @@
 .auth-switch{text-align:center;font-size:14px;color:var(--muted);font-weight:400}
 .auth-switch button{color:var(--green);font-weight:700;background:none;border:0;font-size:14px}
 @media (max-width:860px){.auth-shell{grid-template-columns:1fr}.auth-panel-left{display:none}}
+.gallery-thumbs{position:absolute;bottom:12px;left:12px;right:12px;display:flex;gap:8px;overflow-x:auto}.gallery-thumbs button{flex-shrink:0;background:var(--card)}.gallery-thumbs button.active{border-color:var(--green)!important}
