@@ -3,7 +3,15 @@
 const TOKEN_KEY = 'reloop_token'
 const USER_KEY = 'reloop_user'
 
-export type AuthUser = { id: number; name: string; email: string; initials: string; verified: boolean }
+export type AuthUser = {
+  id: number
+  name: string
+  email: string
+  initials: string
+  verified: boolean
+  phone_number?: string
+  address?: string
+}
 
 export function saveAuth(token: string, user: AuthUser) {
   localStorage.setItem(TOKEN_KEY, token)

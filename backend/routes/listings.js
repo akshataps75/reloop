@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const jwt = require('jsonwebtoken');
 const requireAuth = require('../middleware/auth');
 const requireVerified = require('../middleware/requireVerified');
 
@@ -25,13 +26,58 @@ function assignCluster(category, price) {
   return Number(price) >= threshold ? 'B' : 'A';
 }
 
+// Doesn't reject if there's no token — just attaches req.userId when one is
+// present and valid. Lets a public route optionally know who's asking.
+function optionalAuth(req, res, next) {
+  const header = req.headers.authorization;
+  if (header && header.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.verify(header.slice(7), process.env.JWT_SECRET);
+      req.userId = decoded.userId;
+    } catch {
+      // invalid/expired token — just proceed as anonymous
+    }
+  }
+  next();
+}
+
+// GET /api/listings/thresholds — public. Lets the frontend show a live
+// "this will be Cluster B" hint before submission, without duplicating
+// the threshold values. Backend still re-validates independently in
+// assignCluster() on POST /listings, so this is a convenience, not a
+// trust boundary.
+router.get('/thresholds', (req, res) => {
+  res.json(CLUSTER_THRESHOLDS);
+});
+
+// GET /api/listings/category-counts — public. Real per-category active-listing
+// counts for the Home page category grid.
+router.get('/category-counts', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT category, COUNT(*)::int AS count FROM listings WHERE status = 'active' GROUP BY category`
+    );
+    const counts = {};
+    result.rows.forEach(r => { counts[r.category] = r.count; });
+    res.json(counts);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Something went wrong fetching category counts' });
+  }
+});
+
 // GET /api/listings?lat&lng&radius&search&category
 // Public — browsing doesn't require auth or verification.
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   const { lat, lng, radius, search, category } = req.query;
 
   const conditions = ["status = 'active'"];
   const params = [];
+
+  if (req.userId) {
+    params.push(req.userId);
+    conditions.push(`l.seller_id != $${params.length}`);
+  }
 
   if (lat && lng && radius) {
     params.push(Number(lng), Number(lat), Number(radius));
@@ -70,7 +116,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/listings/:id — public, single listing with seller info joined.
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT l.*, u.name AS seller, u.initials AS seller_initials, u.verified AS seller_verified
@@ -82,7 +128,17 @@ router.get('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Listing not found' });
     }
-    res.json(result.rows[0]);
+
+    let alreadyInterested = false;
+    if (req.userId) {
+      const interestCheck = await pool.query(
+        'SELECT 1 FROM listing_interests WHERE listing_id = $1 AND buyer_id = $2',
+        [req.params.id, req.userId]
+      );
+      alreadyInterested = interestCheck.rows.length > 0;
+    }
+
+    res.json({ ...result.rows[0], alreadyInterested });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Something went wrong fetching the listing' });
@@ -159,32 +215,6 @@ router.post('/', requireAuth, requireVerified, async (req, res) => {
   }
 });
 
-// GET /api/users/:id — public seller profile: active + sold listings.
-router.get('/users/:id', async (req, res) => {
-  try {
-    const userResult = await pool.query(
-      `SELECT id, name, initials, role, verified FROM users WHERE id = $1`,
-      [req.params.id]
-    );
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const listingsResult = await pool.query(
-      `SELECT id, title, price, image, status, sold_on
-       FROM listings
-       WHERE seller_id = $1
-       ORDER BY created_at DESC`,
-      [req.params.id]
-    );
-
-    res.json({ ...userResult.rows[0], listings: listingsResult.rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Something went wrong fetching this profile' });
-  }
-});
-
 // POST /api/listings/:id/interest — gated: authed + verified. Idempotent.
 router.post('/:id/interest', requireAuth, requireVerified, async (req, res) => {
   try {
@@ -198,42 +228,6 @@ router.post('/:id/interest', requireAuth, requireVerified, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Something went wrong registering interest' });
-  }
-});
-
-// GET /api/me/activity — authed. Selling (mine) + buying (interested-in), split active/completed.
-router.get('/me/activity', requireAuth, async (req, res) => {
-  try {
-    const selling = await pool.query(
-      `SELECT id, title, price, image, status, sold_on
-       FROM listings
-       WHERE seller_id = $1
-       ORDER BY created_at DESC`,
-      [req.userId]
-    );
-
-    const buying = await pool.query(
-      `SELECT l.id AS listing_id, l.title, l.price, l.image, l.status, li.interested_on
-       FROM listing_interests li
-       JOIN listings l ON l.id = li.listing_id
-       WHERE li.buyer_id = $1
-       ORDER BY li.interested_on DESC`,
-      [req.userId]
-    );
-
-    res.json({
-      selling: {
-        active: selling.rows.filter(l => l.status === 'active'),
-        sold: selling.rows.filter(l => l.status === 'sold'),
-      },
-      buying: {
-        ongoing: buying.rows.filter(l => l.status === 'active'),
-        completed: buying.rows.filter(l => l.status === 'sold'),
-      },
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Something went wrong fetching activity' });
   }
 });
 

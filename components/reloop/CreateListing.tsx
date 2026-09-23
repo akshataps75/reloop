@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowLeft, Camera, ChevronRight, ShieldCheck } from 'lucide-react'
-import { THRESHOLDS, rupee } from '../../lib/mock-data'
-import { createListing, uploadFiles } from '../../lib/api'
+import { rupee } from '../../lib/mock-data'
+import { createListing, uploadFiles, getClusterThresholds } from '../../lib/api'
 import { DigiLockerGate } from './DigiLockerGate'
 
 export function CreateListing({
@@ -28,6 +28,12 @@ export function CreateListing({
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [docFile, setDocFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [thresholds, setThresholds] = useState<Record<string, number>>({})
+  const [conditionNotes, setConditionNotes] = useState('')
+
+  useEffect(() => {
+    getClusterThresholds().then(setThresholds).catch(() => {})
+  }, [])
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -48,7 +54,7 @@ export function CreateListing({
     if (file) setDocFile(file)
   }
 
-  const threshold = category ? THRESHOLDS[category] : Infinity
+  const threshold = category ? thresholds[category] : Infinity
   const isClusterB = Boolean(category) && Number(price || 0) >= threshold
 
   const publish = async () => {
@@ -141,7 +147,7 @@ export function CreateListing({
           <label>Category
             <select value={category} onChange={e => setCategory(e.target.value)}>
               <option value="">Choose a category</option>
-              {Object.keys(THRESHOLDS).map(c => <option key={c} value={c}>{c}</option>)}
+              {Object.keys(thresholds).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
           <div className="form-row">
@@ -157,7 +163,7 @@ export function CreateListing({
                 <ShieldCheck size={17} />
                 <span>This item's price crosses the verification threshold for {category} ({rupee(threshold)}+). A few extra details are needed before it goes live.</span>
               </div>
-              <label>Condition notes<textarea placeholder="Describe scratches, functional issues, service history..." /></label>
+              <label>Condition notes<textarea value={conditionNotes} onChange={e => setConditionNotes(e.target.value)} placeholder="Describe scratches, functional issues, service history..." /></label>
               <label>Ownership document type
                 <div className="chip-row">
                   {['Warranty', 'Insurance', 'Receipt', 'Service record', 'Not applicable'].map(d => (

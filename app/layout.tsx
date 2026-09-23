@@ -4,7 +4,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'ReLoop — Good things find new homes',
-  description: 'A trusted campus marketplace to buy, sell, and exchange nearby.',
+  description: 'A trusted marketplace to buy, sell, and exchange nearby.',
   generator: 'v0.app',
   icons: {
     icon: [

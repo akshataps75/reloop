@@ -9,6 +9,7 @@ import {
 } from '../../lib/api'
 import { MeetupScheduler } from './MeetupScheduler'
 import { MeetupCard } from './MeetupCard'
+import { getStoredUser } from '../../lib/auth'
 
 function relLabel(t: ChatThread) {
   return t.role === 'selling' ? `Interested in ${t.listingTitle}` : `Selling ${t.listingTitle}`
@@ -29,6 +30,7 @@ export function Messaging({ onBack, initialThreadId }: { onBack: () => void; ini
   const [loading, setLoading] = useState(true)
   const [schedulerOpen, setSchedulerOpen] = useState(false)
   const [activeMeetup, setActiveMeetup] = useState<Meetup>({ status: 'none' })
+  const myInitials = getStoredUser()?.initials ?? '?'
 
   useEffect(() => {
     getChatThreads().then(data => {
@@ -137,6 +139,7 @@ export function Messaging({ onBack, initialThreadId }: { onBack: () => void; ini
                   ))}
                   <MeetupCard
                     meetup={activeMeetup}
+                    myInitials={myInitials}
                     otherInitials={active.initials}
                     otherName={active.name}
                     onAccept={async () => setActiveMeetup(await acceptMeetup(active.id))}

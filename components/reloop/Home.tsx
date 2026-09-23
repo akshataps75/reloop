@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { ChevronRight, Search, ShieldCheck, Sparkles } from 'lucide-react'
 import type { Listing } from '@/lib/types'
-import { CATEGORIES } from '@/lib/mock-data'
-import { getListings } from '@/lib/api'
+import { CATEGORY_ICONS, CATEGORY_NAMES } from '@/lib/constants'
+import { getListings, getCategoryCounts } from '@/lib/api'
 import { ListingCard } from './ListingCard'
 
 export function Home({
@@ -23,6 +23,7 @@ export function Home({
 
   const [freshListings, setFreshListings] = useState<Listing[]>([])
   const [loadingFresh, setLoadingFresh] = useState(true)
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -32,6 +33,9 @@ export function Home({
         setLoadingFresh(false)
       }
     })
+    getCategoryCounts().then(data => {
+      if (!cancelled) setCategoryCounts(data)
+    }).catch(() => {})
     return () => { cancelled = true }
   }, [])
   return (
@@ -65,13 +69,17 @@ export function Home({
           <button className="text-link" onClick={onBrowse}>View all <ChevronRight size={15} /></button>
         </div>
         <div className="category-grid">
-          {CATEGORIES.map(([name, icon, count]) => (
-            <button className="category-card" key={name} onClick={() => onCategory(name)}>
-              <span className="category-icon">{icon}</span>
-              <strong>{name}</strong>
-              <small>{count}</small>
-            </button>
-          ))}
+          {CATEGORY_NAMES.map(name => {
+            const Icon = CATEGORY_ICONS[name]
+            const count = categoryCounts[name] ?? 0
+            return (
+              <button className="category-card" key={name} onClick={() => onCategory(name)}>
+                <span className="category-icon"><Icon size={24} /></span>
+                <strong>{name}</strong>
+                <small>{name === 'Other' ? 'Explore all' : `${count} listing${count === 1 ? '' : 's'}`}</small>
+              </button>
+            )
+          })}
         </div>
       </section>
 

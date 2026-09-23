@@ -1,7 +1,7 @@
 'use client'
 
 import { Bell, ChevronRight, MapPin } from 'lucide-react'
-import { CURRENT_USER } from '@/lib/mock-data'
+import { getStoredUser } from '@/lib/auth'
 
 export function Header({
   location = 'Kothrud, Pune',
@@ -16,6 +16,8 @@ export function Header({
   onGoProfile: () => void
   onNotify: (message: string) => void
 }) {
+  const user = getStoredUser()
+
   return (
     <header className="topbar">
       <button className="brand" onClick={onGoHome}>
@@ -31,7 +33,7 @@ export function Header({
         <button className="icon-button" aria-label="Notifications" onClick={() => onNotify('You are all caught up')}>
           <Bell size={19} />
         </button>
-        <button className="avatar" onClick={onGoProfile}>{CURRENT_USER.initials}</button>
+        <button className="avatar" onClick={onGoProfile}>{user?.initials ?? '?'}</button>
       </div>
     </header>
   )

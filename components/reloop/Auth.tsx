@@ -62,6 +62,7 @@ export function Auth({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Something went wrong')
+      saveAuth(getToken()!, data.user)
       onAuthed(data.user)
     } catch (err: any) {
       setError(err.message)
@@ -100,10 +101,10 @@ export function Auth({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
             <p className="muted">A couple of details to help nearby buyers and sellers find you.</p>
 
             <label>Phone number
-              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 98765 43210" autoComplete="off" />
+              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Enter your phone number" autoComplete="off" />
             </label>
             <label>Pincode / Address
-              <input value={pincode} onChange={e => setPincode(e.target.value)} placeholder="411021" autoComplete="off" />
+              <input value={pincode} onChange={e => setPincode(e.target.value)} placeholder="Enter your pincode" autoComplete="off" />
             </label>
 
             {error && <div className="threshold-note">{error}</div>}

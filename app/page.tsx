@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Home, MessageCircle, Plus, Search, UserRound } from 'lucide-react'
 import type { Listing, Screen, SellerProfile as SellerProfileType } from '../lib/types'
-import { getStoredUser, type AuthUser } from '../lib/auth'
-import { expressInterest, createThread, getListingById, getSellerProfile } from '../lib/api'
+import { getStoredUser, saveAuth, getToken, type AuthUser } from '../lib/auth'
+import { expressInterest, createThread, getListingById, getSellerProfile, updateProfile } from '../lib/api'
 
 import { Header } from '../components/reloop/Header'
 import { NavItem } from '../components/reloop/NavItem'
@@ -20,6 +20,7 @@ import { LocationModal } from '../components/reloop/LocationModal'
 import { EditProfileModal, type EditableProfile } from '../components/reloop/EditProfileModal'
 import { SellerProfile as SellerProfileScreen } from '../components/reloop/SellerProfile'
 import { SellingListingDetail } from '../components/reloop/SellingListingDetail'
+import { DigiLockerGate } from '../components/reloop/DigiLockerGate'
 
 export default function ReLoop() {
   const [screen, setScreen] = useState<Screen>('auth')
@@ -33,27 +34,19 @@ export default function ReLoop() {
   const [viewingSeller, setViewingSeller] = useState<SellerProfileType | null>(null)
   const [sellingListingId, setSellingListingId] = useState<number | null>(null)
   const [pendingThreadId, setPendingThreadId] = useState<string | null>(null)
-
   const [locationOpen, setLocationOpen] = useState(false)
-  const [location, setLocation] = useState('Bavdhan, Pune 411021')
-
+  const [location, setLocation] = useState('Set your location')
   const [editProfileOpen, setEditProfileOpen] = useState(false)
-  const [profile, setProfile] = useState<EditableProfile>({
-    name: 'Akshata Shrivastava',
-    phone: '+91 98765 43210',
-    address: '104, Sadafuli, DSK Ranwara Society, Bavdhan, Pune, 411021',
-    initials: 'AS',
-  })
-
   const [everVerified, setEverVerified] = useState(false)
+  const [interestGateOpen, setInterestGateOpen] = useState(false)
 
   // On mount, check localStorage for an existing session
   useEffect(() => {
     const stored = getStoredUser()
     if (stored) {
       setUser(stored)
-      setProfile(p => ({ ...p, name: stored.name, initials: stored.initials }))
       setEverVerified(stored.verified)
+      if (stored.address) setLocation(stored.address)
       setScreen('home')
     } else {
       setScreen('auth')
@@ -66,10 +59,20 @@ export default function ReLoop() {
     window.setTimeout(() => setToast(''), 2500)
   }
 
-  const openDetail = (l: Listing) => {
+  const openDetail = async (l: Listing) => {
+    if (user && l.sellerId === user.id) {
+      setSellingListingId(l.id)
+      setScreen('sellingDetail')
+      return
+    }
     setSelected(l)
     setInterested(false)
     setScreen('detail')
+    const full = await getListingById(l.id)
+    if (full) {
+      setSelected(full)
+      setInterested(Boolean(full.alreadyInterested))
+    }
   }
 
   const openDetailById = async (listingId: number) => {
@@ -86,8 +89,8 @@ export default function ReLoop() {
         <Auth
           onAuthed={u => {
             setUser(u)
-            setProfile(p => ({ ...p, name: u.name, initials: u.initials }))
             setEverVerified(u.verified)
+            if (u.address) setLocation(u.address)
             setScreen('home')
           }}
         />
@@ -125,9 +128,18 @@ export default function ReLoop() {
             listing={selected}
             interested={interested}
             onInterested={async () => {
-              await expressInterest(selected.id)
-              setInterested(true)
-              notify('Interest sent to seller')
+              try {
+                await expressInterest(selected.id)
+                await createThread(selected.id)
+                setInterested(true)
+                notify('Interest sent to seller')
+              } catch (err: any) {
+                if (err.message === 'verification_required') {
+                  setInterestGateOpen(true)
+                } else {
+                  notify(err.message || 'Something went wrong')
+                }
+              }
             }}
             onBack={() => setScreen('browse')}
             onMessage={async () => {
@@ -177,7 +189,14 @@ export default function ReLoop() {
           <CreateListing
             onBack={() => setScreen('home')}
             everVerified={everVerified}
-            onVerified={() => setEverVerified(true)}
+            onVerified={() => {
+              setEverVerified(true)
+              if (user) {
+                const updatedUser = { ...user, verified: true }
+                saveAuth(getToken()!, updatedUser)
+                setUser(updatedUser)
+              }
+            }}
             onCreated={() => { setScreen('activity'); notify('Listing published') }}
           />
         )}
@@ -211,12 +230,42 @@ export default function ReLoop() {
         onSelectLocation={loc => { setLocation(loc); notify('Location updated') }}
       />
 
-      {editProfileOpen && (
+      {editProfileOpen && user && (
         <EditProfileModal
-          profile={profile}
+          profile={{
+            name: user.name,
+            phone: user.phone_number || '',
+            address: user.address || '',
+            initials: user.initials,
+          }}
           onClose={() => setEditProfileOpen(false)}
           onEditAddress={() => { setEditProfileOpen(false); setLocationOpen(true) }}
-          onSave={updated => { setProfile(updated); setEditProfileOpen(false); notify('Profile updated') }}
+          onSave={async updated => {
+            const savedUser = await updateProfile({ phone: updated.phone, address: updated.address })
+            saveAuth(getToken()!, savedUser)
+            setUser(savedUser)
+            setEditProfileOpen(false)
+            notify('Profile updated')
+          }}
+        />
+      )}
+
+      {interestGateOpen && selected && (
+        <DigiLockerGate
+          onClose={() => setInterestGateOpen(false)}
+          onDone={async () => {
+            setEverVerified(true)
+            if (user) {
+              const updatedUser = { ...user, verified: true }
+              saveAuth(getToken()!, updatedUser)
+              setUser(updatedUser)
+            }
+            setInterestGateOpen(false)
+            await expressInterest(selected.id)
+            await createThread(selected.id)
+            setInterested(true)
+            notify('Interest sent to seller')
+          }}
         />
       )}
     </div>

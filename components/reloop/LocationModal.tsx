@@ -19,6 +19,7 @@ export function LocationModal({
   const [results, setResults] = useState<LocResult[]>([])
   const [searching, setSearching] = useState(false)
   const [selectedLoc, setSelectedLoc] = useState<LocResult | null>(null)
+  const [locationError, setLocationError] = useState('')
 
   useEffect(() => {
     if (!search || search.trim().length < 3) {
@@ -45,19 +46,29 @@ export function LocationModal({
   }, [search])
 
   const useCurrentLocation = () => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        setSelectedLoc({
-          name: 'Current location',
-          addr: `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`,
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        })
-      },
-      err => console.error('Geolocation failed:', err)
-    )
+  if (!navigator.geolocation) {
+    setLocationError("Your browser doesn't support location detection. Try searching for your area instead.")
+    return
   }
+  setLocationError('')
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      setSelectedLoc({
+        name: 'Current location',
+        addr: `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+      })
+    },
+    err => {
+      const message =
+        err.code === err.PERMISSION_DENIED
+          ? 'Location access was denied. Try searching for your area instead.'
+          : "Couldn't detect your location. Try searching for your area instead."
+      setLocationError(message)
+    }
+  )
+}
 
   if (!isOpen) return null
 

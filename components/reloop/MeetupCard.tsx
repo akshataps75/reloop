@@ -5,6 +5,7 @@ import type { Meetup } from '../../lib/types'
 
 export function MeetupCard({
   meetup,
+  myInitials,
   otherInitials,
   otherName,
   onAccept,
@@ -13,6 +14,7 @@ export function MeetupCard({
   onSimulateThem,
 }: {
   meetup: Meetup
+  myInitials: string
   otherInitials: string
   otherName: string
   onAccept: () => void
@@ -55,7 +57,7 @@ export function MeetupCard({
       </div>
       <div style={{ marginTop: 10 }}>
         <div className="confirm-row">
-          <span className="who"><span className="profile-avatar" style={{ width: 26, height: 26, fontSize: 10 }}>AS</span>You</span>
+          <span className="who"><span className="profile-avatar" style={{ width: 26, height: 26, fontSize: 10 }}>{myInitials}</span>You</span>
           <span className={`confirm-dot ${meetup.doneByMe ? 'done' : 'pending'}`}>{meetup.doneByMe ? '✓' : ''}</span>
         </div>
         <div className="confirm-row">

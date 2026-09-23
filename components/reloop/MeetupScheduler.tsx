@@ -16,7 +16,7 @@ function nextDays(count: number) {
 }
 
 const DATE_OPTIONS = nextDays(4)
-const TIME_OPTIONS = ['9:00 AM', '10:00 AM', '11:00 AM', '2:00 PM', '4:00 PM', '6:00 PM']
+const TIME_OPTIONS = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '2:00 PM', '4:00 PM', '5:00 PM', '6:00 PM']
 
 export function MeetupScheduler({
   listingTitle,

@@ -1,8 +1,8 @@
-import { CHAT_MESSAGES, CHAT_THREADS } from './mock-data'
 import { ChatMessage, ChatThread, Listing } from './types'
 import { getToken } from './auth'
 import type { Meetup } from './types'
 import { getStoredUser } from './auth'
+import type { AuthUser } from './auth'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 const delay = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -45,6 +45,8 @@ function adaptListing(row: any): Listing {
     documentUrl: row.document_url ?? undefined,
     status: row.status,
     soldOn: row.sold_on ?? undefined,
+    alreadyInterested: Boolean(row.alreadyInterested),
+    sellerVerified: Boolean(row.seller_verified),
   }
 }
 
@@ -78,14 +80,24 @@ async function handle(res: Response) {
   return data
 }
 
+export async function getClusterThresholds(): Promise<Record<string, number>> {
+  const res = await fetch(`${API_BASE}/api/listings/thresholds`)
+  return handle(res)
+}
+
+export async function getCategoryCounts(): Promise<Record<string, number>> {
+  const res = await fetch(`${API_BASE}/api/listings/category-counts`)
+  return handle(res)
+}
+
 export async function getListings(): Promise<Listing[]> {
-  const res = await fetch(`${API_BASE}/api/listings`)
+  const res = await fetch(`${API_BASE}/api/listings`, { headers: authHeaders() })
   const rows = await handle(res)
   return rows.map(adaptListing)
 }
 
 export async function getListingById(id: number): Promise<Listing | undefined> {
-  const res = await fetch(`${API_BASE}/api/listings/${id}`)
+  const res = await fetch(`${API_BASE}/api/listings/${id}` , { headers: authHeaders() })
   if (res.status === 404) return undefined
   const row = await handle(res)
   return adaptListing(row)
@@ -140,6 +152,16 @@ export async function completeVerification(): Promise<void> {
     headers: authHeaders(),
   })
   await handle(res)
+}
+
+export async function updateProfile(updates: { phone?: string; address?: string }): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/api/auth/me`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(updates),
+  })
+  const data = await handle(res)
+  return data.user
 }
 
 export async function getChatThreads(): Promise<ChatThread[]> {

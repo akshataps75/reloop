@@ -58,7 +58,10 @@ export function ListingDetail({
           </div>
           <div className="seller-panel" onClick={onSellerProfile}>
             <span className="profile-avatar">{listing.initials}</span>
-            <div><strong>{listing.seller}</strong><span><ShieldCheck size={14} /> Verified member · 4.9 rating</span></div>
+            <div>
+              <strong>{listing.seller}</strong>
+              {listing.sellerVerified && <span><ShieldCheck size={14} /> Verified member</span>}
+            </div>
             <ChevronRight />
           </div>
           <div className="detail-actions">

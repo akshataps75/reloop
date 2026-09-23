@@ -30,6 +30,8 @@ export type Listing = {
   documentUrl?: string
   status?: 'active' | 'sold'
   soldOn?: string
+  alreadyInterested?: boolean
+  sellerVerified?: boolean
 }
 
 export type ChatThread = {

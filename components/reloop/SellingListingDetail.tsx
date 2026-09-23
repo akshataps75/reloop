@@ -18,6 +18,7 @@ export function SellingListingDetail({
   const [listing, setListing] = useState<Listing | null>(null)
   const [buyers, setBuyers] = useState<InterestedBuyer[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeImage, setActiveImage] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -39,14 +40,30 @@ export function SellingListingDetail({
   }
 
   const isSold = listing.status === 'sold'
+  const gallery = listing.images && listing.images.length > 0 ? listing.images : [listing.image || '/placeholder.svg']
 
   return (
     <div className="page detail-page">
       <button className="back" onClick={onBack}><ArrowLeft size={18} /> Back to activity</button>
       <div className="detail-layout">
         <div className="detail-visual">
-          <img src={listing.image || '/placeholder.svg'} alt={listing.title} />
+          <img src={gallery[activeImage]} alt={listing.title} />
           {isSold && <span className="detail-badge">SOLD</span>}
+          {gallery.length > 1 && (
+            <div className="gallery-thumbs">
+              {gallery.map((src, i) => (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => setActiveImage(i)}
+                  className={i === activeImage ? 'active' : ''}
+                  style={{ padding: 0, border: i === activeImage ? '2px solid currentColor' : '2px solid transparent', borderRadius: 8, overflow: 'hidden' }}
+                >
+                  <img src={src} alt="" style={{ width: 56, height: 56, objectFit: 'cover', display: 'block' }} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="detail-copy">
           <p className="eyebrow">{listing.category}</p>
