@@ -1,94 +1,116 @@
 # ReLoop
 
-## What is this?
+ReLoop is a local marketplace for passing on second-hand items such as books, electronics, furniture to someone nearby who'll actually use it. Same basic idea as OLX or Facebook Marketplace, but built around one key difference: **not every trade deserves the same amount of caution.**  
 
-ReLoop is a marketplace for people to buy, sell, and pass on second-hand
-items to others nearby — things like books, electronics, furniture,
-appliances, or clothes that one person doesn't need anymore but someone
-else in the same area would happily use.
+A used paperback or a second-hand refrigerator aren't the same kind of decision. One is a quick low stake's buy and the other is worth inspecting carefully before handing over real money. ReLoop auto-sorts every listing into one of the two tiers based on category + price, and not just category:  
+- **Quick trades (Cluster A):** Cheap, fast decision items. Upload a photo, price and done
+- **Careful trades (Cluster B):** High value items. Also asks for condition notes and proof of ownership before it goes live.
 
-It works like other local classifieds apps (OLX, Quikr, Facebook
-Marketplace) in the basic idea — list something, someone nearby buys it —
-but it's built around one core difference: **not every item deserves the
-same amount of caution.**
+The threshold logic runs server-side, so it can't be bypassed by manipulated client.  
 
-## The core idea: not all trades are equally risky
+**Trust** works the same way, upfront. Every user verifies their identity once (simulated DigiLocker verification) and a 'verified' badge follows them everywhere after. So by the time you are messaging someone, you already know they are accountable, not an anonymous username.
 
-Think about the difference between buying a used paperback book for ₹50
-versus buying a second-hand refrigerator for ₹15,000. Most marketplace
-apps treat both the exact same way: snap a photo, write a price, chat,
-meet up, done. But those two trades really aren't the same:
+**Flow**:  
+Sign up → Browser and search listings freely → First time you list an item / click "I'm interested" listed item → Verify (one time) → List an item / message seller → Chat or negotitate if needed → Mutually agree on a meet → Both sides confirm the handoff → Listing marked sold  
 
-- The book is cheap, the decision is quick, and if it turns out to be a
-  bit worn, no big deal.
-- The refrigerator is expensive, you'd want to actually inspect it, know
-  its condition and age, and be a lot more careful before handing over
-  that much money.
+## Tech Stack
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 16 (React 19, TypeScript), Tailwind CSS |
+| Backend | Node.js, Express 5 |
+| Database | PostgreSQL + PostGIS (geospatial queries: distance, radius search) |
+| File storage | Supabase Storage (listing photos, ownership documents) |
+| Auth | JWT (bcrypt-hashed passwords, 7-day tokens) |
+| Geocoding | Nominatim (OpenStreetMap), proxied through the backend |
 
-So instead of treating every category the same way, this app sorts
-listings into two groups based on **how much the trade is really worth
-being careful about** — not by what the item technically *is*:
+The frontend and backend are two separate apps in this repo. The frontend is a Next.js client that talks to Express API over plain REST.
 
-- **Quick trades** — low-value, fast-decision items (clothes, books,
-  kitchenware). Listing one of these is minimal: photo, price, done.
-- **Careful trades** — higher-value items that genuinely benefit from
-  more scrutiny (furniture, appliances, electronics, or anything
-  expensive enough regardless of category). Listing one of these asks
-  for a bit more: the item's condition, its age, and proof you actually
-  own it.
+## Architecture
+```
+┌───────────────────────────┐    REST (JSON)       ┌──────────────────┐
+│  Next.js client           │ ──────────────────▶ │   Express API     │
+│  (app/, components/, lib/)│                     │  (backend/routes/) │
+└───────────────────────────┘ ◀────────────────── └───────────────────┘
+                                                        │
+                          ┌─────────────────────────────┼─────────────────────────────┐
+                          ▼                             ▼                             ▼
+                 PostgreSQL + PostGIS          Supabase Storage              Nominatim (OSM)
+                 (users, listings, chat,       (listing photos,              (pincode/locality
+                  meetups, interests)           ownership docs)               → lat/lng)
+```
 
-The app figures out automatically which group a listing belongs to,
-based on its category and price — the person listing it doesn't have to
-decide that themselves.
+## Setup Instructions:
+**Prerequisites:** Node.js 18+, a PostgreSQL database with the PostGIS extension available (a free Supabase project works well and also covers file storage), and a Supabase Storage bucket named listing-images (set to public).
 
-## How trust works here
+1. Clone and install both apps:
+```
+git clone <this-repo-url>
+cd <repo-folder>
 
-Most local marketplace apps rely on star ratings and reviews, which
-don't do much to stop someone impersonating a legitimate seller or asking
-for a fake "advance payment" before ever showing up. This app takes a
-different approach: **everyone verifies who they really are, once, right
-when they sign up** — similar to how some apps ask you to confirm your
-identity using a government-issued ID. Once done, a visible "verified"
-badge appears on that person's profile everywhere — their listings, their
-chats, everything.
+# frontend
+npm install
 
-This means: by the time you're messaging someone or agreeing to meet
-them, you already know they're a real, accountable person — not an
-anonymous stranger with just a made-up username and a star rating.
+# backend
+cd backend
+npm install
+```
 
-## How does it actually work, step by step?
+2. Setup the database
+```
+psql "$DATABASE_URL" -f backend/migrations/001_init.sql
+psql "$DATABASE_URL" -f backend/migrations/002_add_profile_fields.sql
+psql "$DATABASE_URL" -f backend/migrations/003_meetup_unique.sql
+psql "$DATABASE_URL" -f backend/migrations/004_listing_images.sql
+psql "$DATABASE_URL" -f backend/migrations/005_remove_role.sql
+```
 
-1. **You sign up and verify your identity.** This happens once, the
-   first time you try to post a listing — not every single time.
+3. Enviornment variables:
+backend/.env:
+```
+DATABASE_URL=postgresql://...
+JWT_SECRET=<any long random string>
+SUPABASE_URL=https://<your-project>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<your service role key>
+```
+.env.local:
+```
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
 
-2. **You list something you want to sell.** Title, category, price,
-   description, photos. If it's a "careful trade" item (see above), you
-   also add a bit more detail and proof of ownership.
+4. Seed demo data (Optional but recommended):
+To populate a handful of demo users, listings
+```
+cd backend
+npm run seed
+```
 
-3. **You can also share why you're giving it away.** Every listing has
-   an optional space for a short story — not hidden behind the price,
-   shown right alongside it. It's meant to keep this feeling more
-   personal than a plain classified ad.
+## Technical decisions
+- **PostGIS over storing plain lat/lng floats.** Computing "how far is
+  this listing from me" and "what's within 5km" as raw floating-point
+  math is easy to get subtly wrong (the Earth isn't flat). PostGIS's
+  `geography` type handles the math correctly and lets Postgres do the
+  filtering, instead of pulling every row back and computing distance
+  in JavaScript.
+- **Cluster assignment is server-side, not just a frontend hint.** The
+  frontend shows a live "this will be Cluster B" preview as you type a
+  price, but the backend independently re-runs the same threshold logic
+  on submission — the frontend hint is a convenience, not a trust
+  boundary a malicious client could bypass.
+- **Images never touch the Express server's filesystem.** Multer holds
+  uploads in memory only long enough to forward them to Supabase
+  Storage. This keeps the API server stateless — it can be restarted or
+  redeployed without needing to worry about a local uploads folder.
+- **Verification is a one-time gate, not per-listing.** Once a user
+  verifies, every future listing and every future "I'm interested"
+  click skips that step. This was a deliberate trade-off: stronger
+  friction once, rather than repeated friction that trains people to
+  click through it mindlessly.
+- **JWT over server-side sessions.** No session store to manage; the
+  trade-off is that a token can't be immediately revoked before its
+  7-day expiry (acceptable for a student project's threat model, but
+  called out here as a real limitation, not an oversight).
 
-4. **You see listings from nearby, not the whole city.** By default, you
-   see what's actually close to you, with an option to widen that to
-   neighboring areas too — so the app stays genuinely local, not an
-   endless citywide scroll.
-
-5. **If someone's interested, they message the seller directly**, in a
-   private conversation inside the app.
-
-6. **They arrange a meetup** right inside that same conversation —
-   proposing a time and place, and the other person accepting it.
-
-7. **Once both people confirm the handoff actually happened**, the item
-   is marked sold, and it comes off the marketplace.
-
-8. **Everyone can see their own activity** — what they're selling, what
-   they've shown interest in buying, and what they've completed before.
-
-## What's not built yet (known limitations)
-
+## Limitations: 
 This is a mini-project built by one person in a semester, so a few
 things from the original vision are intentionally simplified, descoped,
 or left for later:
