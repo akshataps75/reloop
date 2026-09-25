@@ -13,7 +13,7 @@ export function LocationModal({
 }: {
   isOpen: boolean
   onClose: () => void
-  onSelectLocation: (locName: string) => void
+  onSelectLocation: (loc: LocResult) => void
 }) {
   const [search, setSearch] = useState('')
   const [results, setResults] = useState<LocResult[]>([])
@@ -73,7 +73,9 @@ export function LocationModal({
   if (!isOpen) return null
 
   const handleConfirm = () => {
-    onSelectLocation(selectedLoc ? selectedLoc.name : 'your area')
+    if (selectedLoc) {
+      onSelectLocation(selectedLoc)
+    }
     onClose()
   }
 

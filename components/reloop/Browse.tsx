@@ -10,10 +10,12 @@ export function Browse({
   initialSearch,
   onSelectListing,
   onBack,
+  coords,
 }: {
   initialSearch?: string
   onSelectListing: (l: Listing) => void
   onBack: () => void
+  coords: { lat: number; lng: number } | null
 }) {
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,14 +24,14 @@ export function Browse({
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    getListings().then(data => {
+    getListings(coords ?? undefined).then(data => {
       if (!cancelled) {
         setListings(data)
         setLoading(false)
       }
     })
     return () => { cancelled = true }
-  }, [])
+  }, [coords])
 
   const filtered = listings.filter(
     item =>

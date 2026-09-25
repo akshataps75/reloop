@@ -26,7 +26,6 @@ export default function ReLoop() {
   const [screen, setScreen] = useState<Screen>('auth')
   const [checkedAuth, setCheckedAuth] = useState(false)
   const [user, setUser] = useState<AuthUser | null>(null)
-
   const [selected, setSelected] = useState<Listing | null>(null)
   const [search, setSearch] = useState('')
   const [interested, setInterested] = useState(false)
@@ -39,6 +38,7 @@ export default function ReLoop() {
   const [editProfileOpen, setEditProfileOpen] = useState(false)
   const [everVerified, setEverVerified] = useState(false)
   const [interestGateOpen, setInterestGateOpen] = useState(false)
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   // On mount, check localStorage for an existing session
   useEffect(() => {
@@ -52,6 +52,15 @@ export default function ReLoop() {
       setScreen('auth')
     }
     setCheckedAuth(true)
+  }, [])
+
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => { }, // denied/unavailable — distance just won't show, no crash
+      { timeout: 5000 }
+    )
   }, [])
 
   const notify = (m: string) => {
@@ -68,7 +77,7 @@ export default function ReLoop() {
     setSelected(l)
     setInterested(false)
     setScreen('detail')
-    const full = await getListingById(l.id)
+    const full = await getListingById(l.id, coords ?? undefined)
     if (full) {
       setSelected(full)
       setInterested(Boolean(full.alreadyInterested))
@@ -76,7 +85,7 @@ export default function ReLoop() {
   }
 
   const openDetailById = async (listingId: number) => {
-    const l = await getListingById(listingId)
+    const l = await getListingById(listingId, coords ?? undefined)
     if (l) openDetail(l)
   }
 
@@ -116,11 +125,12 @@ export default function ReLoop() {
             onBrowse={() => setScreen('browse')}
             onDetail={openDetail}
             onCategory={c => { setSearch(c); setScreen('browse') }}
+            coords={coords}
           />
         )}
 
         {screen === 'browse' && (
-          <Browse initialSearch={search} onSelectListing={openDetail} onBack={() => setScreen('home')} />
+          <Browse initialSearch={search} onSelectListing={openDetail} onBack={() => setScreen('home')} coords={coords}/>
         )}
 
         {screen === 'detail' && selected && (
@@ -227,7 +237,17 @@ export default function ReLoop() {
       <LocationModal
         isOpen={locationOpen}
         onClose={() => setLocationOpen(false)}
-        onSelectLocation={loc => { setLocation(loc); notify('Location updated') }}
+        onSelectLocation={async loc => {
+          setLocation(loc.name)
+          try {
+            const savedUser = await updateProfile({ address: loc.addr, lat: loc.lat, lng: loc.lng })
+            saveAuth(getToken()!, savedUser)
+            setUser(savedUser)
+            notify('Location updated')
+          } catch (err: any) {
+            notify(err.message || 'Could not save location')
+          }
+        }}
       />
 
       {editProfileOpen && user && (

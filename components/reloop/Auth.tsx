@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { saveAuth, getToken, type AuthUser } from '../../lib/auth'
+import { searchLocations } from '../../lib/api'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -50,15 +51,32 @@ export function Auth({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
     }
   }
 
-  const submitProfile = async (e: React.FormEvent) => {
+    const submitProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
+      // Best-effort: resolve the pincode to coordinates so users.location isn't
+      // left null. If Nominatim finds nothing (bad pincode, no matches), we still
+      // save the address text and just skip the coordinates.
+      let lat: number | undefined
+      let lng: number | undefined
+      if (pincode.trim().length >= 3) {
+        try {
+          const matches = await searchLocations(pincode.trim())
+          if (matches[0]) {
+            lat = matches[0].lat
+            lng = matches[0].lng
+          }
+        } catch {
+          // geocoding is a nice-to-have here — don't block profile completion on it
+        }
+      }
+
       const res = await fetch(`${API_BASE}/api/auth/me`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ phone, address: pincode }),
+        body: JSON.stringify({ phone, address: pincode, lat, lng }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Something went wrong')
@@ -70,7 +88,7 @@ export function Auth({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
       setLoading(false)
     }
   }
-
+  
   const skipProfile = () => {
     if (signedUpUser) onAuthed(signedUpUser)
   }

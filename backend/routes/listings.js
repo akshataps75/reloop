@@ -68,21 +68,31 @@ router.get('/category-counts', async (req, res) => {
 
 // GET /api/listings?lat&lng&radius&search&category
 // Public — browsing doesn't require auth or verification.
+// GET /api/listings?lat&lng&radius&search&category
+// Public — browsing doesn't require auth or verification.
 router.get('/', optionalAuth, async (req, res) => {
   const { lat, lng, radius, search, category } = req.query;
-
   const conditions = ["status = 'active'"];
   const params = [];
+  let distanceSelect = 'NULL::float8 AS distance_km';
+  let viewerPointIdx = null; // param index of the lng value, once pushed
 
   if (req.userId) {
     params.push(req.userId);
     conditions.push(`l.seller_id != $${params.length}`);
   }
 
-  if (lat && lng && radius) {
-    params.push(Number(lng), Number(lat), Number(radius));
+  const hasCoords = lat && lng;
+  if (hasCoords) {
+    params.push(Number(lng), Number(lat));
+    viewerPointIdx = params.length - 1; // index of lng; lat is viewerPointIdx + 1
+    distanceSelect = `ST_Distance(l.location, ST_SetSRID(ST_MakePoint($${viewerPointIdx}, $${viewerPointIdx + 1}), 4326)::geography) / 1000.0 AS distance_km`;
+  }
+
+  if (hasCoords && radius) {
+    params.push(Number(radius));
     conditions.push(
-      `ST_DWithin(l.location, ST_SetSRID(ST_MakePoint($${params.length - 2}, $${params.length - 1}), 4326)::geography, $${params.length})`
+      `ST_DWithin(l.location, ST_SetSRID(ST_MakePoint($${viewerPointIdx}, $${viewerPointIdx + 1}), 4326)::geography, $${params.length})`
     );
   }
 
@@ -101,6 +111,7 @@ router.get('/', optionalAuth, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT l.id, l.title, l.category, l.price, l.image, l.cluster, l.status, l.created_at,
+              ${distanceSelect},
               u.name AS seller, u.initials AS seller_initials
        FROM listings l
        JOIN users u ON u.id = l.seller_id
@@ -117,13 +128,18 @@ router.get('/', optionalAuth, async (req, res) => {
 
 // GET /api/listings/:id — public, single listing with seller info joined.
 router.get('/:id', optionalAuth, async (req, res) => {
+  const { lat, lng } = req.query;
+  const hasCoords = lat && lng;
   try {
     const result = await pool.query(
-      `SELECT l.*, u.name AS seller, u.initials AS seller_initials, u.verified AS seller_verified
+      `SELECT l.*, u.name AS seller, u.initials AS seller_initials, u.verified AS seller_verified,
+              CASE WHEN $2::float8 IS NOT NULL AND $3::float8 IS NOT NULL AND l.location IS NOT NULL
+                   THEN ST_Distance(l.location, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography) / 1000.0
+                   ELSE NULL END AS distance_km
        FROM listings l
        JOIN users u ON u.id = l.seller_id
        WHERE l.id = $1`,
-      [req.params.id]
+      [req.params.id, hasCoords ? Number(lng) : null, hasCoords ? Number(lat) : null]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Listing not found' });

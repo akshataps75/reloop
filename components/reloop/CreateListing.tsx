@@ -30,6 +30,7 @@ export function CreateListing({
   const [uploading, setUploading] = useState(false)
   const [thresholds, setThresholds] = useState<Record<string, number>>({})
   const [conditionNotes, setConditionNotes] = useState('')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   useEffect(() => {
     getClusterThresholds().then(setThresholds).catch(() => {})
@@ -57,7 +58,7 @@ export function CreateListing({
   const threshold = category ? thresholds[category] : Infinity
   const isClusterB = Boolean(category) && Number(price || 0) >= threshold
 
-  const publish = async () => {
+    const publish = async () => {
     setSubmitting(true)
     try {
       let imageUrls: string[] = []
@@ -75,18 +76,35 @@ export function CreateListing({
         setUploading(false)
       }
 
+      // Best-effort: grab the device's current position so the listing has a
+      // location. If it's denied/unavailable, publish anyway without one.
+      let liveCoords = coords
+      if (!liveCoords && navigator.geolocation) {
+        liveCoords = await new Promise<{ lat: number; lng: number } | null>(resolve => {
+          navigator.geolocation.getCurrentPosition(
+            pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () => resolve(null),
+            { timeout: 5000 }
+          )
+        })
+        if (liveCoords) setCoords(liveCoords)
+      }
+
       await createListing({
         title: title || 'Untitled listing',
         category: category || 'Other',
         price: Number(price || 0),
         description,
+        condition: conditionNotes || undefined,
         images: imageUrls,
         documentType: docType || undefined,
         documentUrl,
+        lat: liveCoords?.lat,
+        lng: liveCoords?.lng,
       })
       onCreated()
     } catch (err: any) {
-      alert(err.message) // simple for now — can swap for inline error state if you want
+      alert(err.message)
     } finally {
       setSubmitting(false)
       setUploading(false)

@@ -13,12 +13,14 @@ export function Home({
   onBrowse,
   onDetail,
   onCategory,
+  coords,
 }: {
   search: string
   setSearch: (s: string) => void
   onBrowse: () => void
   onDetail: (l: Listing) => void
   onCategory: (c: string) => void
+  coords: { lat: number; lng: number } | null
 }) {
 
   const [freshListings, setFreshListings] = useState<Listing[]>([])
@@ -27,7 +29,7 @@ export function Home({
 
   useEffect(() => {
     let cancelled = false
-    getListings().then(data => {
+    getListings(coords ?? undefined).then(data => {
       if (!cancelled) {
         setFreshListings(data.slice(0, 3))
         setLoadingFresh(false)
@@ -37,7 +39,7 @@ export function Home({
       if (!cancelled) setCategoryCounts(data)
     }).catch(() => {})
     return () => { cancelled = true }
-  }, [])
+  }, [coords])
   return (
     <div className="page home-page">
       <section className="hero">

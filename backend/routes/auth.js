@@ -69,15 +69,19 @@ router.post('/login', async (req, res) => {
 });
 
 router.patch('/me', requireAuth, async (req, res) => {
-  const { phone, address } = req.body;
+  const { phone, address, lat, lng } = req.body;
+  const hasCoords = lat !== undefined && lat !== null && lng !== undefined && lng !== null;
   try {
     const result = await pool.query(
       `UPDATE users 
        SET phone_number = COALESCE($1, phone_number), 
-           address = COALESCE($2, address) 
+           address = COALESCE($2, address),
+           location = CASE WHEN $4::boolean
+                        THEN ST_SetSRID(ST_MakePoint($5::float8, $6::float8), 4326)::geography
+                        ELSE location END
        WHERE id = $3 
        RETURNING id, name, email, initials, verified, phone_number, address`,
-      [phone || null, address || null, req.userId]
+      [phone || null, address || null, req.userId, hasCoords, hasCoords ? Number(lng) : null, hasCoords ? Number(lat) : null]
     );
     res.json({ user: result.rows[0] });
   } catch (err) {

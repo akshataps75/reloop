@@ -153,3 +153,7 @@
 .auth-switch button{color:var(--green);font-weight:700;background:none;border:0;font-size:14px}
 @media (max-width:860px){.auth-shell{grid-template-columns:1fr}.auth-panel-left{display:none}}
 .gallery-thumbs{position:absolute;bottom:12px;left:12px;right:12px;display:flex;gap:8px;overflow-x:auto}.gallery-thumbs button{flex-shrink:0;background:var(--card)}.gallery-thumbs button.active{border-color:var(--green)!important}
+
+.detail-condition{background:var(--sand);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:20px 0}
+.detail-condition strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--green);margin-bottom:6px}
+.detail-condition p{margin:0;font-size:13px;line-height:1.6;color:var(--foreground)}

@@ -26,6 +26,12 @@ function timeAgoShort(iso: string): string {
   return iso ? timeAgo(iso) : ''
 }
 
+function formatDistance(km: number | null | undefined): string {
+  if (km === null || km === undefined) return ''
+  if (km < 1) return `${Math.round(km * 1000)} m away`
+  return `${km.toFixed(1)} km away`
+}
+
 // Maps a raw backend listing row (snake_case, DB-shaped) to the frontend Listing type.
 function adaptListing(row: any): Listing {
   return {
@@ -34,13 +40,13 @@ function adaptListing(row: any): Listing {
     title: row.title,
     category: row.category,
     price: Number(row.price),
-    distance: '',
-    image: row.image || '',
+    distance: formatDistance(row.distance_km !== null && row.distance_km !== undefined ? Number(row.distance_km) : null),    image: row.image || '',
     images: Array.isArray(row.images) && row.images.length > 0 ? row.images : undefined,
     seller: row.seller,
     initials: row.seller_initials,
     time: row.created_at ? timeAgo(row.created_at) : '',
     description: row.description ?? undefined,
+    condition: row.condition ?? undefined,
     clusterB: row.cluster === 'B',
     documentUrl: row.document_url ?? undefined,
     status: row.status,
@@ -90,14 +96,26 @@ export async function getCategoryCounts(): Promise<Record<string, number>> {
   return handle(res)
 }
 
-export async function getListings(): Promise<Listing[]> {
-  const res = await fetch(`${API_BASE}/api/listings`, { headers: authHeaders() })
+export async function getListings(opts?: { lat?: number; lng?: number }): Promise<Listing[]> {
+  const params = new URLSearchParams()
+  if (opts?.lat !== undefined && opts?.lng !== undefined) {
+    params.set('lat', String(opts.lat))
+    params.set('lng', String(opts.lng))
+  }
+  const qs = params.toString()
+  const res = await fetch(`${API_BASE}/api/listings${qs ? `?${qs}` : ''}`, { headers: authHeaders() })
   const rows = await handle(res)
   return rows.map(adaptListing)
 }
 
-export async function getListingById(id: number): Promise<Listing | undefined> {
-  const res = await fetch(`${API_BASE}/api/listings/${id}` , { headers: authHeaders() })
+export async function getListingById(id: number, opts?: { lat?: number; lng?: number }): Promise<Listing | undefined> {
+  const params = new URLSearchParams()
+  if (opts?.lat !== undefined && opts?.lng !== undefined) {
+    params.set('lat', String(opts.lat))
+    params.set('lng', String(opts.lng))
+  }
+  const qs = params.toString()
+  const res = await fetch(`${API_BASE}/api/listings/${id}${qs ? `?${qs}` : ''}`, { headers: authHeaders() })
   if (res.status === 404) return undefined
   const row = await handle(res)
   return adaptListing(row)
@@ -113,6 +131,8 @@ export async function createListing(newListing: {
   images?: string[]
   documentType?: string
   documentUrl?: string
+  lat?: number
+  lng?: number
 }): Promise<Listing> {
   const res = await fetch(`${API_BASE}/api/listings`, {
     method: 'POST',
@@ -154,7 +174,7 @@ export async function completeVerification(): Promise<void> {
   await handle(res)
 }
 
-export async function updateProfile(updates: { phone?: string; address?: string }): Promise<AuthUser> {
+export async function updateProfile(updates: { phone?: string; address?: string; lat?: number; lng?: number }): Promise<AuthUser> {
   const res = await fetch(`${API_BASE}/api/auth/me`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },

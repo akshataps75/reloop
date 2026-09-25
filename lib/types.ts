@@ -26,6 +26,7 @@ export type Listing = {
   initials: string
   time: string
   description?: string
+  condition?: string
   clusterB?: boolean
   documentUrl?: string
   status?: 'active' | 'sold'

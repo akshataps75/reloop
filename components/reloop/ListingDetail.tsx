@@ -52,6 +52,12 @@ export function ListingDetail({
           <p className="detail-description">
             {listing.description ?? 'Gently used and well cared for. Happy to share more photos or answer any questions. Open to a quick meetup nearby.'}
           </p>
+          {listing.condition && (
+            <div className="detail-condition">
+              <strong>Condition notes</strong>
+              <p>{listing.condition}</p>
+            </div>
+          )}
           <div className="detail-location">
             <MapPin size={17} />
             <span><strong>{listing.distance}</strong></span>
