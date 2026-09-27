@@ -6,7 +6,6 @@ const requireVerified = require('../middleware/requireVerified');
 
 const router = express.Router();
 
-// Mirrors lib/mock-data.ts THRESHOLDS on the frontend — keep these two in sync.
 const CLUSTER_THRESHOLDS = {
   'Books & Stationery': 1500,
   'Mobile & Accessories': 10000,
@@ -17,7 +16,6 @@ const CLUSTER_THRESHOLDS = {
   'Sports & Fitness': 4000,
   'Appliances': 6000,
   'Musical Instruments': 5000,
-  // 'Other' has no threshold — always Cluster A
 };
 
 function assignCluster(category, price) {
@@ -26,8 +24,6 @@ function assignCluster(category, price) {
   return Number(price) >= threshold ? 'B' : 'A';
 }
 
-// Doesn't reject if there's no token — just attaches req.userId when one is
-// present and valid. Lets a public route optionally know who's asking.
 function optionalAuth(req, res, next) {
   const header = req.headers.authorization;
   if (header && header.startsWith('Bearer ')) {
@@ -68,32 +64,21 @@ router.get('/category-counts', async (req, res) => {
 
 // GET /api/listings?lat&lng&radius&search&category
 // Public — browsing doesn't require auth or verification.
-// GET /api/listings?lat&lng&radius&search&category
-// Public — browsing doesn't require auth or verification.
 router.get('/', optionalAuth, async (req, res) => {
-  const { lat, lng, radius, search, category } = req.query;
+  const { lat, lng, search, category } = req.query;
+
   const conditions = ["status = 'active'"];
   const params = [];
   let distanceSelect = 'NULL::float8 AS distance_km';
-  let viewerPointIdx = null; // param index of the lng value, once pushed
 
   if (req.userId) {
     params.push(req.userId);
     conditions.push(`l.seller_id != $${params.length}`);
   }
 
-  const hasCoords = lat && lng;
-  if (hasCoords) {
+  if (lat && lng) {
     params.push(Number(lng), Number(lat));
-    viewerPointIdx = params.length - 1; // index of lng; lat is viewerPointIdx + 1
-    distanceSelect = `ST_Distance(l.location, ST_SetSRID(ST_MakePoint($${viewerPointIdx}, $${viewerPointIdx + 1}), 4326)::geography) / 1000.0 AS distance_km`;
-  }
-
-  if (hasCoords && radius) {
-    params.push(Number(radius));
-    conditions.push(
-      `ST_DWithin(l.location, ST_SetSRID(ST_MakePoint($${viewerPointIdx}, $${viewerPointIdx + 1}), 4326)::geography, $${params.length})`
-    );
+    distanceSelect = `ST_Distance(l.location, ST_SetSRID(ST_MakePoint($${params.length - 1}, $${params.length}), 4326)::geography) / 1000.0 AS distance_km`;
   }
 
   if (search) {
