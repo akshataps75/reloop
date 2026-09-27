@@ -18,7 +18,7 @@ Sign up → Browser and search listings freely → First time you list an item /
 |---|---|
 | Frontend | Next.js 16 (React 19, TypeScript), Tailwind CSS |
 | Backend | Node.js, Express 5 |
-| Database | PostgreSQL + PostGIS (geospatial queries: distance, radius search) |
+| Database | PostgreSQL + PostGIS (geospatial queries: distance-based sorting) |
 | File storage | Supabase Storage (listing photos, ownership documents) |
 | Auth | JWT (bcrypt-hashed passwords, 7-day tokens) |
 | Geocoding | Nominatim (OpenStreetMap), proxied through the backend |
